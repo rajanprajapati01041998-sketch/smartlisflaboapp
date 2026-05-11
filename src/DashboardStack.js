@@ -24,6 +24,7 @@ import PatientInformationList from './AfterLogin/Screens/PatientRegistration/Pat
 import EditRegistration from './AfterLogin/Screens/PatientRegistration/EditRegistration';
 import TRF_Print from './AfterLogin/Screens/PatientRegistration/TRF_Print';
 import LABReceipts from './AfterLogin/Screens/PatientRegistration/LabReceipts';
+import Location from './components/Location/Location';
 
 const Stack = createNativeStackNavigator();
 
@@ -264,6 +265,11 @@ export default function DashboardStack() {
         name="DashboardPaymentHistoryDetails"
         component={DashboardPaymentHistoryDetails}
         options={{ title: 'History' }}
+      />
+      <Stack.Screen
+        name="Track Location"
+        component={Location}
+        options={{ title: 'Location' }}
       />
     </Stack.Navigator>
   );

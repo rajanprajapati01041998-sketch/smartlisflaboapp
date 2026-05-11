@@ -10,6 +10,13 @@ def enableProguardInReleaseBuilds = false
 
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
+// react-native-geolocation-service (RNFusedLocation) is not compatible with
+// play-services-location 21.x where FusedLocationProviderClient became an interface.
+// Pin to a compatible version to prevent runtime IncompatibleClassChangeError crashes.
+configurations.configureEach {
+    resolutionStrategy.force("com.google.android.gms:play-services-location:18.0.0")
+}
+
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
@@ -23,6 +30,14 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+
+        // Used by AndroidManifest.xml for Google Maps (react-native-maps).
+        // Configure via `android/gradle.properties` (GOOGLE_MAPS_API_KEY=...) or env var `GOOGLE_MAPS_API_KEY`.
+        manifestPlaceholders = [
+            GOOGLE_MAPS_API_KEY: (project.findProperty("GOOGLE_MAPS_API_KEY")
+                ?: System.getenv("GOOGLE_MAPS_API_KEY")
+                ?: "")
+        ]
     }
 
     packagingOptions {
@@ -69,6 +84,8 @@ android {
 
 dependencies {
     implementation("com.facebook.react:react-android")
+    // Required by react-native-geolocation-service on Android (FusedLocationProvider).
+    implementation("com.google.android.gms:play-services-location:18.0.0")
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

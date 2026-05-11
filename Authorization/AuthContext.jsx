@@ -29,6 +29,8 @@ export const AuthProvider = ({ children }) => {
   const [updateFlag, setUpdateFlag] = useState(0);
   const [addBarcode, setAddBarcode] = useState(false)
   const [barcodeScan,setBarcodeScan] = useState(null)
+  const [latitude,setLatitude] = useState(null)
+  const [longitude,setLongitude] = useState(null)
 
   // Initialize custom alert hook
   const { showCustomAlert, AlertComponent } = useCustomAlert();
@@ -195,7 +197,9 @@ console.log(corporateId)
           centerLoginBranchId, setCenterLoginBranchId,
           hosId, setHosId,
           addBarcode, setAddBarcode,
-          barcodeScan,setBarcodeScan
+          barcodeScan,setBarcodeScan,
+          latitude,setLatitude,
+          longitude,setLongitude
         }}
       >
         {children}

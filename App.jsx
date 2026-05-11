@@ -1,17 +1,38 @@
-import React, { useEffect, useState } from 'react';
-import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
-import { useAuth } from './Authorization/AuthContext';
+import React, {useEffect, useState} from 'react';
+import {
+  DarkTheme,
+  DefaultTheme,
+  NavigationContainer,
+} from '@react-navigation/native';
+import {useAuth} from './Authorization/AuthContext';
 import DashboardDrawer from './src/DashboardDrawer';
 import LoginScreen from './src/Login';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { StatusBar, PermissionsAndroid, Platform } from 'react-native';
-import { ResponsiveProvider } from './src/context/ResponsiveContext';
-import { useTheme } from './Authorization/ThemeContext';
+import {SafeAreaProvider} from 'react-native-safe-area-context';
+import {StatusBar, PermissionsAndroid, Platform} from 'react-native';
+import {ResponsiveProvider} from './src/context/ResponsiveContext';
+import {useTheme} from './Authorization/ThemeContext';
 import StartupSplash from './src/StartupSplash';
+import useCurrentLocation from './src/utils/locationService';
+
+const AppContent = () => {
+  const {token, latitude, longitude} = useAuth();
+
+  // Ask for location permission on app start so coordinates are available
+  // for both Login and authenticated flows.
+  useCurrentLocation({enabled: true});
+
+  useEffect(() => {
+    if (latitude != null && longitude != null) {
+      console.log('App location:', latitude, longitude);
+    }
+  }, [latitude, longitude]);
+
+  return token ? <DashboardDrawer /> : <LoginScreen />;
+};
 
 export default function App() {
-  const { token, isLoading } = useAuth();
-  const { theme, colors } = useTheme();
+  const {isLoading} = useAuth();
+  const {theme, colors} = useTheme();
   const [isStartupSplashVisible, setIsStartupSplashVisible] = useState(true);
 
   useEffect(() => {
@@ -27,13 +48,13 @@ export default function App() {
     if (Platform.OS === 'android') {
       try {
         const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE
+          PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
         );
 
         if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-          console.log("Storage permission granted");
+          console.log('Storage permission granted');
         } else {
-          console.log("Storage permission denied");
+          console.log('Storage permission denied');
         }
       } catch (err) {
         console.warn(err);
@@ -62,6 +83,7 @@ export default function App() {
           barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
           backgroundColor={theme === 'dark' ? colors.surface : '#ffffff'}
         />
+
         <NavigationContainer
           theme={{
             ...(theme === 'dark' ? DarkTheme : DefaultTheme),
@@ -73,9 +95,8 @@ export default function App() {
               text: colors.text,
               primary: colors.primary,
             },
-          }}
-        >
-          {token ? <DashboardDrawer /> : <LoginScreen />}
+          }}>
+          <AppContent />
         </NavigationContainer>
       </ResponsiveProvider>
     </SafeAreaProvider>

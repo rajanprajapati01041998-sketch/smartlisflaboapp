@@ -6,6 +6,7 @@ export const logoutUser = async (sessionId) => {
         sessionId: sessionId,
       },
     );
+    console.log("logout",response)
     return response.data
   } catch (error) {
     console.log('Logout Error:', error?.response?.data || error.message);

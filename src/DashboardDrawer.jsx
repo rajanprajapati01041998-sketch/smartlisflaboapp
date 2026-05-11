@@ -80,6 +80,14 @@ function DashboardDrawerContent(props) {
       color: '#ea33a1',
       onPress: () => goToTab('HelpDesk'),
     },
+     {
+      label: 'Track Location',
+      subTitle: 'View Live laction',
+      iconType: 'mi',
+      icon: 'map',
+      color: '#3376ea',
+      onPress: () => goTo('Track Location')
+    },
   ];
 
   const filteredItems = useMemo(() => {

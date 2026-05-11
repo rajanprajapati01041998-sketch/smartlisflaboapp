@@ -31,7 +31,7 @@ import { useTheme } from '../../../../Authorization/ThemeContext';
 import { getThemeStyles } from '../../../utils/themeStyles';
 
 const LabDashboard = () => {
-  const { userData, allBranchInfo, deviceData, loginBranchId, updateFlag } = useAuth();
+  const { userData, allBranchInfo, deviceData, loginBranchId, updateFlag , latitude,longitude } = useAuth();
   const { dashboardWallet, walletData } = useDash();
   const { theme } = useTheme();
   const themed = getThemeStyles(theme);
@@ -48,7 +48,6 @@ const LabDashboard = () => {
   const [selectAll, setSelectAll] = useState(false);
 
   const [selectedBranches, setSelectedBranches] = useState([]);
-
   useFocusEffect(
     useCallback(() => {
       const today = new Date();

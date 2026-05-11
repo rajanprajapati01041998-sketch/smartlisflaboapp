@@ -61,7 +61,9 @@ export default function LoginScreen({ navigation }) {
         setUserId,
         setLoginBranchId,
         deviceData,
-        setAllBranchInfo
+        setAllBranchInfo,
+        latitude,
+        longitude
     } = useAuth();
 
     const { theme, toggleTheme } = useTheme();
@@ -223,9 +225,18 @@ export default function LoginScreen({ navigation }) {
             branchId: branchId,
             browser: deviceData.type,
             device: deviceData.device,
-            os: deviceData.os
+            os: deviceData.os,
+            latitudeApp: latitude,
+            longitudeApp: longitude
         };
         console.log("Final login form data", formData);
+        if (!latitude && !longitude) {
+            showToast("Please allow Location", 'warning')
+            setIsLoading(false)
+            return;
+        }
+
+        
 
         try {
             const response = await api.post(`Login/login`, formData);

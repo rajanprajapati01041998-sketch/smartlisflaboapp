@@ -32,7 +32,8 @@ const HIDE_TABS_BY_TAB = {
     'EditRegistration',
     'TRF_Print',
     'LABReceipts',
-    'BarcodeScanner'
+    'BarcodeScanner',
+    'Track Location'
   ]),
   Registration: new Set(['PatientInformation']),
   HelpDesk: new Set([
@@ -45,7 +46,8 @@ const HIDE_TABS_BY_TAB = {
     'EditRegistration',
     'TRF_Print',
     'LABReceipts',
-    'BarcodeScanner'
+    'BarcodeScanner',
+    'Track Location'
   ]),
 };
 
