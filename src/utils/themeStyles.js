@@ -1,5 +1,6 @@
 import tw from 'twrnc';
 import LinearGradient from 'react-native-linear-gradient';
+import { teal400 } from 'react-native-paper/lib/typescript/styles/themes/v2/colors';
 
 export const getThemeStyles = (theme) => {
   const isDark = theme === 'dark';
@@ -54,11 +55,15 @@ export const getThemeStyles = (theme) => {
       'rounded-2xl border',
       isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
     ),
+    loginBtn: tw.style(
+      'bg-teal-700 text-white p-4 rounded-md',
+      isDark ? 'text-white' : 'text-white'
+    ),
 
     cardPadding: tw.style('p-4'),
 
     cardCompact: tw.style('p-2'),
-   
+
     checkbox: {
       margin: 0,
       padding: 0,
@@ -92,7 +97,7 @@ export const getThemeStyles = (theme) => {
     ),
 
     addButtonText: tw.style(
-       isDark ? 'text-white' : 'text-white'
+      isDark ? 'text-white' : 'text-white'
     ),
 
     mutedText: tw.style(
@@ -369,7 +374,7 @@ export const getThemeStyles = (theme) => {
     ),
 
     // Common colors
-    iconMuted: isDark ? '#f4f6f8' : '#ccced2',
+    iconMuted: isDark ? '#535455' : '#ccced2',
     chevronColor: isDark ? '#f8f9fa' : '#6B7280',
 
 

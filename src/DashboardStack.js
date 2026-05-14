@@ -25,6 +25,7 @@ import EditRegistration from './AfterLogin/Screens/PatientRegistration/EditRegis
 import TRF_Print from './AfterLogin/Screens/PatientRegistration/TRF_Print';
 import LABReceipts from './AfterLogin/Screens/PatientRegistration/LabReceipts';
 import Location from './components/Location/Location';
+import FlaboShareLiveLocation from './AfterLogin/Screens/HelpDesk/FlaboShareLiveLocation';
 
 const Stack = createNativeStackNavigator();
 
@@ -265,6 +266,11 @@ export default function DashboardStack() {
         name="DashboardPaymentHistoryDetails"
         component={DashboardPaymentHistoryDetails}
         options={{ title: 'History' }}
+      />
+       <Stack.Screen
+        name="FlaboShareLiveLocation"
+        component={FlaboShareLiveLocation}
+        options={{ title: 'You are Live' }}
       />
       <Stack.Screen
         name="Track Location"

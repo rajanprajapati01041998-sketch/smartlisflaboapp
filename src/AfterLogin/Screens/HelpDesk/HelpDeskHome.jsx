@@ -32,7 +32,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 const HelpDeskHome = () => {
-  const { loginBranchId, userId, allBranchInfo } = useAuth();
+  const { loginBranchId, userId, allBranchInfo, corporateId } = useAuth();
 
   const [departmentModal, setDepartmentModal] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState('--Department--');
@@ -228,18 +228,21 @@ const HelpDeskHome = () => {
       .join(',');
 
     const payload = {
-      branchId: loginBranchId ? String(loginBranchId) : '1',
+      branchId: String(loginBranchId || '0'),
       typeId: '0',
-      uhid: form.uhid,
+      uhid: form.uhid || '',
       ipdNo: '',
-      labNo: form.labNo,
-      fromDate: form.fromDate,
-      toDate: form.toDate,
-      barCode: form.barCode,
-      investigationName: form.investigationName,
-      patientName: form.patientName,
-      branchIdList,
-      corporateId: '',
+      labNo: form.labNo || '',
+      fromDate: form.fromDate || '',
+      toDate: form.toDate || '',
+      barCode: form.barCode || '',
+      investigationName: form.investigationName || '',
+      patientName: form.patientName || '',
+      branchIdList: String(loginBranchId || '0'),
+      corporateId:
+        corporateId !== null && corporateId !== undefined
+          ? String(corporateId)
+          : '0',
       filter: null,
     };
 
@@ -509,7 +512,7 @@ const HelpDeskHome = () => {
                 />
               </View>
 
-              <View style={tw`flex-col gap-3 mb-3`}>
+              {/* <View style={tw`flex-col gap-3 mb-3`}>
                 <View style={themed.inputContainer}>
                   <Text style={[themed.inputLabel, tw`py-1`]}>Select Department</Text>
                   <TouchableOpacity
@@ -554,7 +557,7 @@ const HelpDeskHome = () => {
                     <Icon name="chevron-down" size={18} color={themed.chevronColor} />
                   </TouchableOpacity>
                 </View>
-              </View>
+              </View> */}
             </View>
           </Animated.View>
 

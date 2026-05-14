@@ -1,507 +1,501 @@
-import React, { useRef, useState } from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {
-  View,
-  TouchableOpacity,
+  Alert,
   Text,
   TextInput,
-  Keyboard,
-  Alert,
+  TouchableOpacity,
+  View,
+  ScrollView,
+  Modal,
+  TouchableWithoutFeedback,
+  Platform,
 } from 'react-native';
 
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import {
+  Map,
+  Camera,
+  GeoJSONSource,
+  Layer,
+} from '@maplibre/maplibre-react-native';
 
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import * as signalR from '@microsoft/signalr';
 import tw from 'twrnc';
 
-const Location = () => {
-  const mapRef = useRef(null);
-  const bikeIntervalRef = useRef(null);
+import axiosInstance from '../../../Authorization/AxiosInstance';
 
-  const [startPlace, setStartPlace] = useState('Varanasi');
-  const [endPlace, setEndPlace] = useState('Prayagraj');
+const HUB_URL = 'http://192.168.31.237:5021/locationHub';
+const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
 
-  const [showSearchPanel, setShowSearchPanel] = useState(true);
+const DEFAULT_LOCATION = {
+  latitude: 20.5937,
+  longitude: 78.9629,
+};
 
-  const [startLocation, setStartLocation] = useState({
-    latitude: 25.3176,
-    longitude: 82.9739,
-  });
+const toNumber = value => {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
+};
 
-  const [endLocation, setEndLocation] = useState({
-    latitude: 25.4358,
-    longitude: 81.8463,
-  });
+const haversineMeters = (a, b) => {
+  const toRad = deg => (deg * Math.PI) / 180;
+  const R = 6371000;
 
-  const [currentPosition, setCurrentPosition] = useState(null);
-  const [routeCoordinates, setRouteCoordinates] = useState([]);
-  const [remainingRouteCoordinates, setRemainingRouteCoordinates] = useState([]);
+  const dLat = toRad(b.latitude - a.latitude);
+  const dLon = toRad(b.longitude - a.longitude);
 
-  const [totalDistance, setTotalDistance] = useState(0);
-  const [remainingDistance, setRemainingDistance] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [speed, setSpeed] = useState(0);
+  const lat1 = toRad(a.latitude);
+  const lat2 = toRad(b.latitude);
 
-  const [routeError, setRouteError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [arrived, setArrived] = useState(false);
+  const x =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1) *
+      Math.cos(lat2) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
 
-  const region = {
-    latitude: startLocation.latitude,
-    longitude: startLocation.longitude,
-    latitudeDelta: 0.7,
-    longitudeDelta: 0.7,
-  };
+  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+};
 
-  const safeJsonParse = text => {
+const AdminTrackFieldBoy = () => {
+  const cameraRef = useRef(null);
+  const hubRef = useRef(null);
+  const trackingUserIdRef = useRef('');
+
+  const [fieldBoyList, setFieldBoyList] = useState([]);
+  const [fieldBoyLoading, setFieldBoyLoading] = useState(false);
+  const [fieldBoyModalVisible, setFieldBoyModalVisible] = useState(false);
+  const [fieldBoySearch, setFieldBoySearch] = useState('');
+
+  const [selectedFieldBoy, setSelectedFieldBoy] = useState(null);
+  const [trackingUserId, setTrackingUserId] = useState('');
+
+  const [socketConnected, setSocketConnected] = useState(false);
+  const [adminRunning, setAdminRunning] = useState(false);
+  const [adminLastFix, setAdminLastFix] = useState(null);
+  const [path, setPath] = useState([]);
+  const [status, setStatus] = useState('Waiting...');
+
+  useEffect(() => {
+    trackingUserIdRef.current = trackingUserId;
+  }, [trackingUserId]);
+
+  const filteredFieldBoyList = useMemo(() => {
+    const search = fieldBoySearch.trim().toLowerCase();
+
+    if (!search) {
+      return fieldBoyList;
+    }
+
+    return fieldBoyList.filter(item => {
+      return (
+        String(item.fieldBoyName || '').toLowerCase().includes(search) ||
+        String(item.fieldBoyId || '').includes(search)
+      );
+    });
+  }, [fieldBoyList, fieldBoySearch]);
+
+  const fetchFieldBoyList = async () => {
     try {
-      return JSON.parse(text);
+      setFieldBoyLoading(true);
+
+      const response = await axiosInstance.get('FieldBoy/GetFieldBoyList');
+
+      const list = Array.isArray(response?.data?.data)
+        ? response.data.data
+        : [];
+
+      setFieldBoyList(list);
+
+      if (list.length > 0 && !selectedFieldBoy) {
+        const first = list[0];
+        setSelectedFieldBoy(first);
+        setTrackingUserId(String(first.fieldBoyId));
+        trackingUserIdRef.current = String(first.fieldBoyId);
+      }
     } catch (error) {
-      console.log('Invalid JSON Response:', text);
-      return null;
-    }
-  };
-
-  const formatDuration = minutes => {
-    const totalMinutes = Math.ceil(Number(minutes) || 0);
-
-    if (totalMinutes <= 0) {
-      return '0 min';
-    }
-
-    const hours = Math.floor(totalMinutes / 60);
-    const mins = totalMinutes % 60;
-
-    if (hours > 0 && mins > 0) {
-      return `${hours} hr ${mins} min`;
-    }
-
-    if (hours > 0) {
-      return `${hours} hr`;
-    }
-
-    return `${mins} min`;
-  };
-
-  const getCoordinatesFromPlace = async place => {
-    try {
-      const cleanPlace = place.trim();
-
-      if (!cleanPlace) {
-        return null;
-      }
-
-      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-        cleanPlace,
-      )}&limit=1`;
-
-      const response = await fetch(url, {
-        headers: {
-          Accept: 'application/json',
-          'User-Agent': 'ReactNativeLocationApp/1.0',
-        },
-      });
-
-      const text = await response.text();
-      const data = safeJsonParse(text);
-
-      if (!Array.isArray(data) || data.length === 0) {
-        return null;
-      }
-
-      return {
-        latitude: Number(data[0].lat),
-        longitude: Number(data[0].lon),
-      };
-    } catch (error) {
-      console.log('Geocoding Error:', error);
-      return null;
-    }
-  };
-
-  const stopBikeAnimation = () => {
-    if (bikeIntervalRef.current) {
-      clearInterval(bikeIntervalRef.current);
-      bikeIntervalRef.current = null;
-    }
-  };
-
-  const animateMarkerOnRoute = (coordinates, distanceKm) => {
-    stopBikeAnimation();
-
-    if (!coordinates || coordinates.length === 0) {
-      return;
-    }
-
-    let index = 0;
-
-    setArrived(false);
-
-    bikeIntervalRef.current = setInterval(() => {
-      if (index >= coordinates.length) {
-        stopBikeAnimation();
-
-        const lastPoint = coordinates[coordinates.length - 1];
-
-        setCurrentPosition(lastPoint);
-        setRemainingRouteCoordinates([]);
-        setRemainingDistance(0);
-        setSpeed(0);
-        setArrived(true);
-
-        mapRef.current?.animateCamera(
-          {
-            center: lastPoint,
-            zoom: 16,
-          },
-          {
-            duration: 800,
-          },
-        );
-
-        return;
-      }
-
-      const position = coordinates[index];
-      const remainingCoords = coordinates.slice(index);
-
-      const remaining =
-        ((coordinates.length - index) / coordinates.length) * distanceKm;
-
-      const dynamicSpeed = Math.floor(Math.random() * 20) + 35;
-
-      setSpeed(dynamicSpeed);
-      setCurrentPosition(position);
-      setRemainingRouteCoordinates(remainingCoords);
-      setRemainingDistance(remaining);
-
-      mapRef.current?.animateCamera(
-        {
-          center: position,
-          zoom: 15,
-        },
-        {
-          duration: 700,
-        },
+      console.log(
+        'FieldBoy list error:',
+        error?.response?.data || error?.message,
       );
 
-      index += 5;
-    }, 1000);
-  };
-
-  const getRoute = async (start, end) => {
-    try {
-      stopBikeAnimation();
-
-      setRouteError('');
-      setArrived(false);
-      setRouteCoordinates([]);
-      setRemainingRouteCoordinates([]);
-      setCurrentPosition(null);
-      setTotalDistance(0);
-      setRemainingDistance(0);
-      setDuration(0);
-      setSpeed(0);
-
-      const url =
-        `https://router.project-osrm.org/route/v1/car/` +
-        `${start.longitude},${start.latitude};` +
-        `${end.longitude},${end.latitude}` +
-        `?overview=full&geometries=geojson`;
-
-      const response = await fetch(url);
-      const text = await response.text();
-      const json = safeJsonParse(text);
-
-      if (!json || !json.routes || json.routes.length === 0) {
-        setRouteError('Route not found');
-        return false;
-      }
-
-      const route = json.routes[0];
-
-      const coordinates = route.geometry.coordinates.map(item => ({
-        latitude: item[1],
-        longitude: item[0],
-      }));
-
-      const distanceKm = route.distance / 1000;
-      const durationMin = route.duration / 60;
-
-      setRouteCoordinates(coordinates);
-      setRemainingRouteCoordinates(coordinates);
-      setTotalDistance(distanceKm);
-      setRemainingDistance(distanceKm);
-      setDuration(durationMin);
-      setCurrentPosition(coordinates[0]);
-
-      mapRef.current?.fitToCoordinates(coordinates, {
-        edgePadding: {
-          top: 190,
-          right: 60,
-          bottom: 120,
-          left: 60,
-        },
-        animated: true,
-      });
-
-      setTimeout(() => {
-        animateMarkerOnRoute(coordinates, distanceKm);
-      }, 1000);
-
-      return true;
-    } catch (error) {
-      console.log('OSRM Route Error:', error);
-      setRouteError('Unable to fetch route');
-      return false;
-    }
-  };
-
-  const handleShowPath = async () => {
-    Keyboard.dismiss();
-
-    if (!startPlace.trim()) {
-      Alert.alert('Required', 'Please enter start location');
-      return;
-    }
-
-    if (!endPlace.trim()) {
-      Alert.alert('Required', 'Please enter destination');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setRouteError('Searching location...');
-
-      const start = await getCoordinatesFromPlace(startPlace);
-      const end = await getCoordinatesFromPlace(endPlace);
-
-      if (!start) {
-        setRouteError('Start location not found');
-        return;
-      }
-
-      if (!end) {
-        setRouteError('Destination location not found');
-        return;
-      }
-
-      setStartLocation(start);
-      setEndLocation(end);
-
-      const success = await getRoute(start, end);
-
-      if (success) {
-        setRouteError('');
-        setShowSearchPanel(false);
-      }
-    } catch (error) {
-      console.log('Show Path Error:', error);
-      setRouteError('Unable to load route');
+      Alert.alert('Error', 'Unable to fetch field boy list');
     } finally {
-      setLoading(false);
+      setFieldBoyLoading(false);
     }
   };
 
-  const zoomIn = async () => {
-    const camera = await mapRef.current?.getCamera();
-
-    if (camera) {
-      mapRef.current?.animateCamera({
-        center: camera.center,
-        zoom: camera.zoom + 1,
+  const moveCamera = coords => {
+    try {
+      cameraRef.current?.easeTo({
+        center: [coords.longitude, coords.latitude],
+        zoom: 16,
+        duration: 800,
+        easing: 'ease',
       });
+    } catch (error) {
+      console.log('Camera error:', error?.message);
     }
   };
 
-  const zoomOut = async () => {
-    const camera = await mapRef.current?.getCamera();
+  const addPathPoint = nextFix => {
+    setPath(prev => {
+      const last = prev[prev.length - 1];
 
-    if (camera) {
-      mapRef.current?.animateCamera({
-        center: camera.center,
-        zoom: camera.zoom - 1,
+      if (!last) {
+        return [[nextFix.longitude, nextFix.latitude]];
+      }
+
+      const lastFix = {
+        latitude: last[1],
+        longitude: last[0],
+      };
+
+      const movedMeters = haversineMeters(lastFix, nextFix);
+
+      if (movedMeters < 3) {
+        return prev;
+      }
+
+      return [...prev, [nextFix.longitude, nextFix.latitude]];
+    });
+  };
+
+  const connectSocket = async () => {
+    try {
+      if (
+        hubRef.current &&
+        hubRef.current.state === signalR.HubConnectionState.Connected
+      ) {
+        return;
+      }
+
+      console.log('Connecting admin websocket...');
+
+      const connection = new signalR.HubConnectionBuilder()
+        .withUrl(HUB_URL, {
+          skipNegotiation: true,
+          transport: signalR.HttpTransportType.WebSockets,
+        })
+        .withAutomaticReconnect()
+        .configureLogging(signalR.LogLevel.Information)
+        .build();
+
+      connection.onreconnecting(error => {
+        console.log('Socket reconnecting...', error);
+        setSocketConnected(false);
+        setStatus('Socket reconnecting...');
       });
+
+      connection.onreconnected(() => {
+        console.log('Socket reconnected');
+        setSocketConnected(true);
+        setStatus('Socket reconnected');
+      });
+
+      connection.onclose(error => {
+        console.log('Socket disconnected', error);
+        setSocketConnected(false);
+        setStatus('Socket disconnected');
+      });
+
+      connection.on('ReceiveLocation', location => {
+        try {
+          console.log('Admin Received Live Location:', location);
+
+          const selectedId = String(trackingUserIdRef.current || '');
+          const receivedId = String(location.fieldBoyId || '');
+
+          if (selectedId && selectedId !== receivedId) {
+            console.log('Ignored location for other field boy:', receivedId);
+            return;
+          }
+
+          const lat = toNumber(location.latitude);
+          const lng = toNumber(location.longitude);
+
+          if (lat == null || lng == null) {
+            return;
+          }
+
+          const nextFix = {
+            latitude: lat,
+            longitude: lng,
+          };
+
+          setAdminLastFix(nextFix);
+          addPathPoint(nextFix);
+          moveCamera(nextFix);
+
+          setStatus('Receiving live location');
+        } catch (error) {
+          console.log('ReceiveLocation Error:', error);
+        }
+      });
+
+      await connection.start();
+      await connection.invoke('JoinAdminGroup');
+
+      console.log('================================');
+      console.log('Admin socket connected');
+      console.log('You are live');
+      console.log('================================');
+
+      hubRef.current = connection;
+      setSocketConnected(true);
+      setStatus('Socket connected');
+    } catch (error) {
+      console.log('Socket connection failed:', error);
+      setSocketConnected(false);
+      setStatus('Socket connection failed');
     }
+  };
+
+  const startTracking = async () => {
+    if (!trackingUserId) {
+      Alert.alert('Required', 'Please select field boy');
+      return;
+    }
+
+    setPath([]);
+    setAdminLastFix(null);
+
+    await connectSocket();
+
+    setAdminRunning(true);
+    setStatus('Waiting for live location...');
+  };
+
+  const stopTracking = () => {
+    setAdminRunning(false);
+    setStatus('Tracking stopped');
+  };
+
+  const clearPath = () => {
+    setPath([]);
+    setAdminLastFix(null);
+  };
+
+  const handleSelectFieldBoy = item => {
+    const id = String(item.fieldBoyId);
+
+    setSelectedFieldBoy(item);
+    setTrackingUserId(id);
+    trackingUserIdRef.current = id;
+
+    setPath([]);
+    setAdminLastFix(null);
+    setFieldBoyModalVisible(false);
+    setFieldBoySearch('');
+  };
+
+  useEffect(() => {
+    fetchFieldBoyList();
+
+    return () => {
+      if (hubRef.current) {
+        hubRef.current.stop();
+        hubRef.current = null;
+      }
+    };
+  }, []);
+
+  const latitude = adminLastFix?.latitude || DEFAULT_LOCATION.latitude;
+  const longitude = adminLastFix?.longitude || DEFAULT_LOCATION.longitude;
+
+  const markerGeoJSON = {
+    type: 'FeatureCollection',
+    features: adminLastFix
+      ? [
+          {
+            type: 'Feature',
+            geometry: {
+              type: 'Point',
+              coordinates: [longitude, latitude],
+            },
+            properties: {},
+          },
+        ]
+      : [],
+  };
+
+  const pathGeoJSON = {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        geometry: {
+          type: 'LineString',
+          coordinates: path,
+        },
+        properties: {},
+      },
+    ],
   };
 
   return (
-    <View style={tw`flex-1`}>
-      <MapView
-        ref={mapRef}
-        provider={PROVIDER_GOOGLE}
+    <View style={tw`flex-1 bg-white`}>
+      <Map
         style={tw`flex-1`}
-        initialRegion={region}
-        mapType="standard"
-        showsTraffic
-        showsBuildings
-        showsIndoors
-        showsCompass
-        showsScale
-        showsPointsOfInterest
-        showsMyLocationButton
-        toolbarEnabled>
+        mapStyle={MAP_STYLE}
+        logo={false}
+        attribution={false}
+        androidView={Platform.OS === 'android' ? 'texture' : undefined}>
+        <Camera ref={cameraRef} zoom={5} center={[longitude, latitude]} />
 
-        <Marker coordinate={endLocation} title="Destination" pinColor="red" />
-
-        {remainingRouteCoordinates.length > 0 && (
-          <Polyline
-            coordinates={remainingRouteCoordinates}
-            strokeColor="#2563EB"
-            strokeWidth={7}
-          />
-        )}
-
-        {currentPosition ? (
-          <Marker coordinate={currentPosition} anchor={{ x: 0.5, y: 0.5 }}>
-            {arrived ? (
-              <View style={tw`items-center`}>
-                <MaterialIcons name="location-on" size={50} color="green" />
-
-                <View style={tw`bg-green-600 px-3 py-1 rounded-full`}>
-                  <Text style={tw`text-white text-xs font-bold`}>
-                    Arrived
-                  </Text>
-                </View>
-              </View>
-            ) : (
-              <View style={tw`items-center justify-center`}>
-                <View
-                  style={tw`h-6 w-6 rounded-full bg-blue-600 border-4 border-white shadow-lg`}
-                />
-
-                <View
-                  style={tw`h-14 w-14 rounded-full bg-blue-400 opacity-25 absolute`}
-                />
-              </View>
-            )}
-          </Marker>
-        ) : (
-          <Marker coordinate={startLocation}>
-            <View
-              style={tw`h-6 w-6 rounded-full bg-blue-600 border-4 border-white`}
+        {path.length >= 2 && (
+          <GeoJSONSource id="adminPathSource" data={pathGeoJSON}>
+            <Layer
+              id="adminPathLine"
+              type="line"
+              paint={{
+                'line-color': '#2563eb',
+                'line-width': 5,
+                'line-opacity': 0.9,
+              }}
             />
-          </Marker>
+          </GeoJSONSource>
         )}
-      </MapView>
+
+        {adminLastFix && (
+          <GeoJSONSource id="adminCurrentLocationSource" data={markerGeoJSON}>
+            <Layer
+              id="adminCurrentLocationCircle"
+              type="circle"
+              paint={{
+                'circle-radius': 10,
+                'circle-color': '#dc2626',
+                'circle-stroke-width': 4,
+                'circle-stroke-color': '#ffffff',
+              }}
+            />
+          </GeoJSONSource>
+        )}
+      </Map>
 
       <View
-        style={tw`absolute top-5 left-3 right-3 bg-white rounded-3xl p-4 shadow-xl`}>
-        <View style={tw`flex-row justify-between`}>
-          <View style={tw`items-center flex-1`}>
-            <Text style={tw`text-gray-500 text-[10px]`}>TOTAL</Text>
-            <Text style={tw`text-black text-sm font-bold`}>
-              {totalDistance.toFixed(2)} km
-            </Text>
-          </View>
-
-          <View style={tw`items-center flex-1`}>
-            <Text style={tw`text-gray-500 text-[10px]`}>REMAINING</Text>
-            <Text style={tw`text-blue-700 text-sm font-bold`}>
-              {remainingDistance.toFixed(2)} km
-            </Text>
-          </View>
-
-          <View style={tw`items-center flex-1`}>
-            <Text style={tw`text-gray-500 text-[10px]`}>TIME</Text>
-            <Text style={tw`text-black text-sm font-bold`}>
-              {formatDuration(duration)}
-            </Text>
-          </View>
-
-          <View style={tw`items-center flex-1`}>
-            <Text style={tw`text-gray-500 text-[10px]`}>SPEED</Text>
-            <Text style={tw`text-green-600 text-sm font-bold`}>
-              {speed} km/h
-            </Text>
-          </View>
-        </View>
-
-        {arrived ? (
-          <View style={tw`mt-3 bg-green-100 rounded-2xl py-2`}>
-            <Text style={tw`text-center text-green-700 font-bold`}>
-              Arrived at Destination
-            </Text>
-          </View>
-        ) : null}
-
-        {routeError ? (
-          <Text
-            style={[
-              tw`mt-3 font-semibold text-center`,
-              routeError === 'Searching location...'
-                ? tw`text-blue-600`
-                : tw`text-red-600`,
-            ]}>
-            {routeError}
-          </Text>
-        ) : null}
-      </View>
-
-      {showSearchPanel && (
-        <View
-          style={tw`absolute bottom-5 left-4 right-4 bg-white rounded-3xl p-4 shadow-xl`}>
-          <Text style={tw`text-black text-lg font-bold mb-3`}>
-            Route Navigation
-          </Text>
-
-          <TextInput
-            value={startPlace}
-            onChangeText={setStartPlace}
-            placeholder="Enter Start Location"
-            placeholderTextColor="#666"
-            style={tw`bg-gray-100 rounded-2xl px-4 py-3 text-black mb-3`}
-          />
-
-          <TextInput
-            value={endPlace}
-            onChangeText={setEndPlace}
-            placeholder="Enter Destination"
-            placeholderTextColor="#666"
-            style={tw`bg-gray-100 rounded-2xl px-4 py-3 text-black`}
-          />
-
-          <TouchableOpacity
-            onPress={handleShowPath}
-            disabled={loading}
-            style={[
-              tw`rounded-2xl py-4 mt-4`,
-              loading ? tw`bg-gray-400` : tw`bg-blue-700`,
-            ]}>
-            <Text style={tw`text-white text-center font-bold text-base`}>
-              {loading ? 'Loading Route...' : 'Start Navigation'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {!showSearchPanel && (
+        style={tw`absolute top-0 left-0 right-0 z-50 bg-white pt-14 pb-4 px-3 rounded-b-3xl`}>
         <TouchableOpacity
           onPress={() => {
-            stopBikeAnimation();
-            setShowSearchPanel(true);
+            fetchFieldBoyList();
+            setFieldBoyModalVisible(true);
           }}
-          style={tw`absolute bottom-6 left-5 bg-blue-700 h-14 w-14 rounded-full items-center justify-center shadow-lg`}>
-          <Ionicons name="search" size={24} color="#fff" />
-        </TouchableOpacity>
-      )}
-
-      <View style={tw`absolute right-4 bottom-10`}>
-        <TouchableOpacity
-          onPress={zoomIn}
-          style={tw`bg-white h-14 w-14 rounded-full items-center justify-center mb-3 shadow-lg`}>
-          <Ionicons name="add" size={30} color="#000" />
+          style={tw`border border-gray-300 rounded-xl px-4 py-4 bg-white`}>
+          <Text style={tw`text-black font-semibold text-base`}>
+            {selectedFieldBoy ? selectedFieldBoy.fieldBoyName : 'Choose Field Boy'}
+          </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={zoomOut}
-          style={tw`bg-white h-14 w-14 rounded-full items-center justify-center shadow-lg`}>
-          <Ionicons name="remove" size={30} color="#000" />
-        </TouchableOpacity>
+        <View style={tw`flex-row mt-4`}>
+          <TouchableOpacity
+            onPress={adminRunning ? stopTracking : startTracking}
+            style={tw`flex-1 py-4 rounded-2xl ${
+              adminRunning ? 'bg-red-600' : 'bg-green-600'
+            } mr-2`}>
+            <Text style={tw`text-white text-center font-bold text-base`}>
+              {adminRunning ? 'Stop Tracking' : 'Start Tracking'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={clearPath}
+            style={tw`px-6 py-4 rounded-2xl bg-gray-800`}>
+            <Text style={tw`text-white font-bold text-base`}>Clear</Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={tw`text-center mt-4 text-gray-700 font-bold text-lg`}>
+          Socket: {socketConnected ? 'Connected ✅' : 'Disconnected ❌'}
+        </Text>
+
+        <Text style={tw`text-center mt-1 text-gray-500 text-sm`}>
+          Status: {status}
+        </Text>
+
+        {adminLastFix && (
+          <Text style={tw`text-center mt-1 text-gray-500 text-xs`}>
+            Lat: {latitude} | Lng: {longitude}
+          </Text>
+        )}
       </View>
+
+      <Modal
+        visible={fieldBoyModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setFieldBoyModalVisible(false)}>
+        <TouchableWithoutFeedback onPress={() => setFieldBoyModalVisible(false)}>
+          <View style={tw`flex-1 bg-black/50 justify-end`}>
+            <TouchableWithoutFeedback>
+              <View style={tw`bg-white rounded-t-3xl p-4 max-h-[80%]`}>
+                <Text style={tw`text-lg font-bold text-black mb-3`}>
+                  Select Field Boy
+                </Text>
+
+                <View style={tw`flex-row items-center mb-3`}>
+                  <TextInput
+                    value={fieldBoySearch}
+                    onChangeText={setFieldBoySearch}
+                    placeholder="Search field boy..."
+                    placeholderTextColor="#777"
+                    style={tw`flex-1 bg-gray-100 rounded-xl px-4 py-3 text-black`}
+                  />
+
+                  <TouchableOpacity
+                    onPress={fetchFieldBoyList}
+                    style={tw`bg-blue-100 rounded-xl px-4 py-3 ml-2`}>
+                    <Text style={tw`text-blue-700 text-center font-bold`}>
+                      Refresh
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {fieldBoyLoading ? (
+                    <Text style={tw`text-center text-gray-500 py-5`}>
+                      Loading field boys...
+                    </Text>
+                  ) : filteredFieldBoyList.length > 0 ? (
+                    filteredFieldBoyList.map(item => {
+                      const selected =
+                        String(trackingUserId) === String(item.fieldBoyId);
+
+                      return (
+                        <TouchableOpacity
+                          key={String(item.fieldBoyId)}
+                          onPress={() => handleSelectFieldBoy(item)}
+                          style={[
+                            tw`rounded-xl px-4 py-4 mb-2 border`,
+                            selected
+                              ? tw`bg-blue-50 border-blue-600`
+                              : tw`bg-white border-gray-200`,
+                          ]}>
+                          <View style={tw`flex-row justify-between items-center`}>
+                            <Text style={tw`text-black font-bold text-base`}>
+                              {item.fieldBoyName}
+                            </Text>
+
+                            {selected ? (
+                              <Text style={tw`text-blue-600 font-bold`}>
+                                Selected
+                              </Text>
+                            ) : null}
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })
+                  ) : (
+                    <Text style={tw`text-center text-red-500 py-5`}>
+                      No field boy found
+                    </Text>
+                  )}
+                </ScrollView>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </View>
   );
 };
 
-export default Location;
+export default AdminTrackFieldBoy;

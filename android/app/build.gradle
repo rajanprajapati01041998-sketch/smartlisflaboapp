@@ -86,6 +86,8 @@ dependencies {
     implementation("com.facebook.react:react-android")
     // Required by react-native-geolocation-service on Android (FusedLocationProvider).
     implementation("com.google.android.gms:play-services-location:18.0.0")
+    // Ensure Maps classes are present at runtime for react-native-maps.
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

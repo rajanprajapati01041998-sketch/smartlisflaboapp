@@ -33,31 +33,18 @@ import { getThemeStyles } from '../../../utils/themeStyles'
 
 const UserLoginHistory = () => {
     const { userData } = useAuth()
-
     const [loading, setLoading] = useState(false)
     const [refreshing, setRefreshing] = useState(false)
     const [loginHistory, setLoginHistory] = useState([])
-
     const [addresses, setAddresses] = useState({})
-    const [loadingAddress, setLoadingAddress] =
-        useState({})
-
+    const [loadingAddress, setLoadingAddress] =useState({})
     const navigation = useNavigation()
-
     const { theme } = useTheme()
     const themed = getThemeStyles(theme)
+    const fadeAnim = useRef( new Animated.Value(0)).current
+    const slideAnim = useRef(new Animated.Value(50)).current
 
-    const fadeAnim = useRef(
-        new Animated.Value(0),
-    ).current
-
-    const slideAnim = useRef(
-        new Animated.Value(50),
-    ).current
-
-    const headerFadeAnim = useRef(
-        new Animated.Value(0),
-    ).current
+    const headerFadeAnim = useRef(  new Animated.Value(0),).current
 
     const [itemAnimations, setItemAnimations] =
         useState({})
@@ -71,31 +58,20 @@ const UserLoginHistory = () => {
     }
 
     const getAddressFromCoordinates =
-        async (
-            latitude,
-            longitude,
-            sessionId,
-        ) => {
+        async ( latitude, longitude,sessionId, ) => {
             if (!latitude || !longitude)
                 return null
-
             setLoadingAddress(prev => ({
                 ...prev,
                 [sessionId]: true,
             }))
 
             try {
-                const address =
-                    await getAddressFromLatLng(
-                        latitude,
-                        longitude,
-                    )
-
+                const address =  await getAddressFromLatLng(latitude,longitude)
                 setAddresses(prev => ({
                     ...prev,
                     [sessionId]: address,
                 }))
-
                 return address
             } catch (error) {
                 console.log(
@@ -111,25 +87,15 @@ const UserLoginHistory = () => {
             }
         }
 
-    const getUserLoginHistory = async (
-        id,
-        isRefresh = false,
-    ) => {
+    const getUserLoginHistory = async ( id, isRefresh = false,) => {
         try {
             if (!isRefresh) setLoading(true)
-
-            const response = await api.get(
-                `Login/login-history/${id}`,
-            )
-
+            const response = await api.get(`Login/login-history/${id}`, )
             if (response?.data) {
                 setLoginHistory(response.data)
-
                 response.data.forEach(
                     async item => {
-                        if (
-                            item.latitudeApp &&
-                            item.longitudeApp
+                        if (item.latitudeApp &&item.longitudeApp
                         ) {
                             await getAddressFromCoordinates(
                                 item.latitudeApp,
@@ -141,24 +107,15 @@ const UserLoginHistory = () => {
                 )
 
                 const animations = {}
-
                 response.data.forEach(
-                    (_, index) => {
-                        animations[index] = {
-                            fade:
-                                new Animated.Value(
-                                    0,
-                                ),
-                            slide:
-                                new Animated.Value(
-                                    30,
-                                ),
+                    (_, index) => { animations[index] = {
+                            fade: new Animated.Value( 0, ),
+                            slide: new Animated.Value(  30, ),
                         }
                     },
                 )
 
                 setItemAnimations(animations)
-
                 Object.keys(
                     animations,
                 ).forEach((key, index) => {
@@ -167,9 +124,8 @@ const UserLoginHistory = () => {
                             animations[key].fade,
                             {
                                 toValue: 1,
-                                duration: 400,
-                                delay:
-                                    index * 80,
+                                duration: 250,
+                                delay:index * 20,
                                 useNativeDriver: true,
                             },
                         ),
@@ -181,8 +137,7 @@ const UserLoginHistory = () => {
                                 toValue: 0,
                                 damping: 15,
                                 stiffness: 100,
-                                delay:
-                                    index * 80,
+                                delay:index * 20,
                                 useNativeDriver: true,
                             },
                         ),
@@ -194,7 +149,7 @@ const UserLoginHistory = () => {
                         fadeAnim,
                         {
                             toValue: 1,
-                            duration: 500,
+                            duration: 300,
                             useNativeDriver: true,
                         },
                     ),
@@ -203,7 +158,7 @@ const UserLoginHistory = () => {
                         slideAnim,
                         {
                             toValue: 0,
-                            duration: 500,
+                            duration: 300,
                             useNativeDriver: true,
                         },
                     ),
@@ -219,18 +174,10 @@ const UserLoginHistory = () => {
                 ]).start()
             }
         } catch (error) {
-            console.log(
-                'history error',
-                error?.response,
-            )
-
-            Alert.alert(
-                'Error',
-                'Failed to load login history',
-            )
+            console.log(  'history error', error?.response,  )
+            Alert.alert( 'Error', 'Failed to load login history', )
         } finally {
             setLoading(false)
-
             if (isRefresh)
                 setRefreshing(false)
         }
@@ -239,24 +186,18 @@ const UserLoginHistory = () => {
     useFocusEffect(
         useCallback(() => {
             const id = getLoggedInUserId()
-
             if (id) {
                 getUserLoginHistory(id)
             } else {
-                navigation.navigate(
-                    'Dashboard',
-                )
+                navigation.navigate( 'Dashboard',)
             }
-
             return () => { }
         }, [userData]),
     )
 
     const onRefresh = useCallback(() => {
         setRefreshing(true)
-
         const id = getLoggedInUserId()
-
         if (id) {
             getUserLoginHistory(id, true)
         } else {
@@ -266,25 +207,18 @@ const UserLoginHistory = () => {
 
     const formatDate = dateString => {
         const date = new Date(dateString)
-
         const now = new Date()
-
         const diffMs = now - date
-
         const diffMins = Math.floor(
             diffMs / 60000,
         )
-
         const diffHours = Math.floor(
             diffMs / 3600000,
         )
-
         const diffDays = Math.floor(
             diffMs / 86400000,
         )
-
         let timeAgo = ''
-
         if (diffMins < 60) {
             timeAgo = `${diffMins} minute${diffMins !== 1 ? 's' : ''
                 } ago`
@@ -295,9 +229,7 @@ const UserLoginHistory = () => {
             timeAgo = `${diffDays} day${diffDays !== 1 ? 's' : ''
                 } ago`
         } else {
-            timeAgo =
-                date.toLocaleDateString(
-                    'en-US',
+            timeAgo = date.toLocaleDateString('en-US',
                     {
                         year: 'numeric',
                         month: 'short',
@@ -319,45 +251,30 @@ const UserLoginHistory = () => {
                         hour12: true,
                     },
                 ),
-
             timeAgo,
         }
     }
 
-    const getDeviceIcon = (
-        browser,
-        device,
-    ) => {
+    const getDeviceIcon = ( browser, device, ) => {
         const deviceLower = (
             device || ''
         ).toLowerCase()
-
         const browserLower = (
             browser || ''
         ).toLowerCase()
-
         if (
-            deviceLower.includes(
-                'iphone',
-            ) ||
+            deviceLower.includes( 'iphone',) ||
             deviceLower.includes('ipad')
         )
             return 'logo-apple'
-
         if (
-            deviceLower.includes(
-                'android',
-            )
+            deviceLower.includes( 'android', )
         )
             return 'logo-android'
-
         if (
-            browserLower.includes(
-                'chrome',
-            )
+            browserLower.includes( 'chrome', )
         )
             return 'logo-chrome'
-
         return 'laptop-outline'
     }
 
@@ -367,19 +284,14 @@ const UserLoginHistory = () => {
         ).toLowerCase()
 
         if (
-            deviceLower.includes(
-                'iphone',
-            )
+            deviceLower.includes(  'iphone', )
         )
             return '#34C759'
 
         if (
-            deviceLower.includes(
-                'android',
-            )
+            deviceLower.includes( 'android',)
         )
             return '#3DDC84'
-
         return '#3B82F6'
     }
 
@@ -408,15 +320,8 @@ const UserLoginHistory = () => {
                     <View
                         style={tw`flex-row items-center`}
                     >
-                        <Ionicons
-                            name="flash"
-                            size={12}
-                            color="white"
-                        />
-
-                        <Text
-                            style={tw`text-white text-xs font-bold ml-1`}
-                        >
+                        <Ionicons  name="flash" size={12} color="white" />
+                        <Text style={tw`text-white text-xs font-bold ml-1`} >
                             CURRENT
                         </Text>
                     </View>
@@ -649,28 +554,24 @@ const UserLoginHistory = () => {
         >
             <FlatList
                 data={loginHistory}
-                keyExtractor={(
-                    item,
-                    index,
-                ) =>
+                keyExtractor={(item, index) =>
                     `${item.sessionId}-${index}`
                 }
                 renderItem={renderItem}
-                showsVerticalScrollIndicator={
-                    false
-                }
+                showsVerticalScrollIndicator={false}
                 contentContainerStyle={tw`pb-8`}
+
+                initialNumToRender={8}
+                maxToRenderPerBatch={5}
+                windowSize={10}
+                removeClippedSubviews={true}
+                updateCellsBatchingPeriod={50}
+
                 refreshControl={
                     <RefreshControl
-                        refreshing={
-                            refreshing
-                        }
-                        onRefresh={
-                            onRefresh
-                        }
-                        colors={[
-                            '#3b82f6',
-                        ]}
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        colors={['#3b82f6']}
                     />
                 }
             />

@@ -36,7 +36,7 @@ const HIDE_TABS_BY_TAB = {
     'Track Location'
   ]),
   Registration: new Set(['PatientInformation']),
-  HelpDesk: new Set([
+  Sample: new Set([
     'ListHelpDeskPatient',
     'ViewLabReport',
     'DashboardPayment',
@@ -47,6 +47,7 @@ const HIDE_TABS_BY_TAB = {
     'TRF_Print',
     'LABReceipts',
     'BarcodeScanner',
+    'FlaboShareLiveLocation',
     'Track Location'
   ]),
 };
@@ -122,11 +123,11 @@ export default function BottomTabNavigation() {
           let iconName;
 
           if (route.name === 'Dashboard') iconName = 'view-dashboard';
-          else if (route.name === 'HelpDesk') iconName = 'bell';
+          else if (route.name === 'Sample') iconName = 'blood-bag'; // ✅ UPDATE THIS
           else if (route.name === 'Registration') iconName = 'account-plus'; // ✅ ADD THIS
 
           return (
-            <MaterialCommunityIcons
+            <MaterialCommunityIcons 
               name={iconName}
               size={focused ? 26 : 22}
               color={color}
@@ -160,7 +161,7 @@ export default function BottomTabNavigation() {
       />
 
       <Tab.Screen
-        name="HelpDesk"
+        name="Sample"
         component={HelpDeskStack}
       />
     </Tab.Navigator>

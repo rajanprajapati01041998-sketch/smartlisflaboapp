@@ -1,6 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HelpDeskHome from './AfterLogin/Screens/HelpDesk/HelpDeskHome';
 import ListHelpDeskPatient from './AfterLogin/Screens/HelpDesk/ListHelpDeskPatient';
+import FlaboShareLiveLocation from './AfterLogin/Screens/HelpDesk/FlaboShareLiveLocation';
 import ViewLabReport from './AfterLogin/Screens/HelpDesk/ViewLabReport';
 import ViewTebularReport from './AfterLogin/Screens/HelpDesk/ViewTebularReport';
 import { useTheme } from '../Authorization/ThemeContext';
@@ -59,6 +60,12 @@ export default function HelpDeskStack() {
           title: 'Report',
           headerShown: true,
         }}
+      />
+
+      <Stack.Screen
+        name="FlaboShareLiveLocation"
+        component={FlaboShareLiveLocation}
+        options={{ title: 'You are Live' }}
       />
 
       <Stack.Screen

@@ -45,9 +45,11 @@ const Profile = () => {
   const scaleValue = useSharedValue(1);
   const opacityValue = useSharedValue(1);
 
+  console.log('user profile',userData)
+
   useEffect(() => {
     setLabName(userData?.name || '');
-    setUserName(userData?.userName || userData?.user?.userName);
+    setUserName(userData?.userIdApp || "");
   }, [userData]);
 
   console.log(userData)
@@ -78,16 +80,7 @@ const Profile = () => {
 
   const profileItems = [
     { icon: 'person', name: 'User ID', value: userName, color: '#8b5cf6' },
-    { icon: 'wc', name: 'Gender', value: userData?.gender || userData?.user?.gender, color: '#ec489a' },
-    {
-      icon: 'cake',
-      name: 'Date of Birth',
-      value: userData?.dob
-        ? new Date(userData.dob).toLocaleDateString()
-        : userData?.user?.dob
-          ? new Date(userData.user.dob).toLocaleDateString()
-          : '', color: '#f59e0b',
-    },
+    
   ];
 
   return (
@@ -101,50 +94,7 @@ const Profile = () => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={tw`flex-1`}
       >
-        {/* Header */}
-        <Animated.View
-          entering={FadeInDown.delay(100).springify()}
-          style={themed.profileHeader}
-        >
-          <View style={tw`flex-row justify-between items-center`}>
-            <View style={tw`flex-1 pr-3`}>
-              <Animated.Text
-                entering={SlideInRight.delay(200)}
-                style={[
-                  themed.profileHeaderTitle,
-                  { fontSize: width * 0.030 },
-                ]}
-                numberOfLines={1}
-              >
-                {labname || userData?.user?.name}
-              </Animated.Text>
-
-              <Animated.View
-                entering={FadeInUp.delay(300)}
-                style={tw`flex-row items-center mt-1`}
-              >
-                <Icon2 name="shield-checkmark" size={16} color="#16a34a" />
-                <Text style={[tw`ml-1 text-sm font-medium`, { color: '#16a34a' }]}>
-                  Administrator
-                </Text>
-              </Animated.View>
-            </View>
-
-            <Animated.View
-              entering={ZoomIn.delay(150)}
-              style={[
-                tw`p-2 rounded-full`,
-                {
-                  backgroundColor: '#DCFCE7',
-                  borderWidth: 1,
-                  borderColor: '#86EFAC',
-                },
-              ]}
-            >
-              <Icon2 name="person-circle" size={22} color="#16a34a" />
-            </Animated.View>
-          </View>
-        </Animated.View>
+        
 
         <ScrollView
           contentContainerStyle={{ paddingBottom: 110 }}
@@ -205,48 +155,7 @@ const Profile = () => {
           </Animated.View>
 
           {/* Login History */}
-          <Animated.View
-            entering={FadeInDown.delay(500).springify()}
-            style={tw`px-4 mt-4`}
-          >
-            <TouchableOpacity
-              style={[
-                styles.cardShadow,
-                themed.profileCard,
-                tw`p-4`,
-                {
-                  borderWidth: 1,
-                  elevation: 2,
-                },
-              ]}
-              activeOpacity={0.7}
-              onPress={() => navigation.navigate('UserLoginHistory')}
-            >
-              <View style={tw`flex-row items-center`}>
-                <Animated.View
-                  entering={ZoomIn.delay(550)}
-                  style={themed.profileIconBox}
-                >
-                  <MaterialIcons name="history" size={26} color="#3b82f6" />
-                </Animated.View>
-
-                <View style={tw`flex-1`}>
-                  <Text style={[tw`text-base font-semibold`, themed.mutedText]}>
-                    Login History
-                  </Text>
-                  <Text style={[tw`text-xs mt-1`, themed.headerSubText]}>
-                    View and manage your login sessions
-                  </Text>
-                </View>
-
-                <MaterialIcons
-                  name="chevron-right"
-                  size={28}
-                  color={themed.chevronColor}
-                />
-              </View>
-            </TouchableOpacity>
-          </Animated.View>
+          
 
           {/* Account Status */}
           <Animated.View
