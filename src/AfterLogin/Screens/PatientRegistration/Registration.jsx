@@ -37,11 +37,12 @@ import { getPatientInvestigation } from '../../../utils/patinetService.js/invest
 import { getFullLocation } from '../../../utils/patinetService.js/location';
 import SelectApproval from './SelectApproval';
 import Clipboard from '@react-native-clipboard/clipboard';
+import AddBarcodePatientRegistration from './AddBarcodePatientRegistration';
 
 
 const RegistrationScreen = () => {
   const [loading, setLoading] = useState(false)
-  const { ipAddress, setServiceItem, serviceItem, selectedDoctor, corporateId, patientData, userData, loginBranchId, centerLoginBranchId, userId, addBarcode, hosId, fieldBoyData,fieldBoyId } = useAuth();
+  const { ipAddress, setServiceItem, serviceItem, selectedDoctor, corporateId, patientData, userData, loginBranchId, centerLoginBranchId, userId, addBarcode, hosId, fieldBoyData, fieldBoyId } = useAuth();
   const { showToast } = useToast()
   const { theme, colors } = useTheme();
   const themed = getThemeStyles(theme);
@@ -191,15 +192,18 @@ const RegistrationScreen = () => {
   }, [patientData, parseDOBValue])
 
   useEffect(() => {
-    if (selectedTitle === "Mr") setGender("MALE");
-    if (["Mrs", "Miss"].includes(selectedTitle)) setGender("FEMALE");
+    const title = String(selectedTitle || '').toLowerCase();
+
+    if (['mr', 'mr.', 'master','dr.'].includes(title)) {
+      setGender('MALE');
+    } else if (['mrs', 'mrs.', 'miss.', 'ms', 'ms.'].includes(title)) {
+      setGender('FEMALE');
+    } else {
+      setGender('OTHER');
+    }
   }, [selectedTitle]);
 
-  useEffect(() => {
-    setGender("MALE")
-  }, [])
-
-  console.log("boy id", fieldBoyId,corporateId)
+  console.log("boy id", fieldBoyId, corporateId)
   useFocusEffect(
     useCallback(() => {
       GetReferedLabList();
@@ -1854,290 +1858,22 @@ const RegistrationScreen = () => {
         </TouchableOpacity>
 
         {/* Barcode + remark modal (shown only when addBarcode is enabled) */}
-        <Modal
+        <AddBarcodePatientRegistration
           visible={barcodeModalVisible}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setBarcodeModalVisible(false)}
-        >
-          <View style={[themed.modalOverlay]}>
-            <TouchableWithoutFeedback onPress={() => setBarcodeModalVisible(false)}>
-              <View style={tw`absolute inset-0`} />
-            </TouchableWithoutFeedback>
-
-            <View style={[themed.modalContainer, tw` w-full h-[85%] rounded-t-3xl overflow-hidden`]}>
-              {/* Fixed Header */}
-              <View style={tw`px-4 pt-4 pb-3 border-b border-gray-100 `}>
-                <View style={tw`flex-row justify-between items-center`}>
-                  <View style={tw`flex-1 pr-3`}>
-                    <Text style={[themed.modalHeaderTitle, tw``]}>
-                      Barcodes & Remarks
-                    </Text>
-                    <Text style={themed.mutedText}>
-                      Enter details for selected tests
-                    </Text>
-                  </View>
-
-                  <TouchableOpacity
-                    onPress={() => setBarcodeModalVisible(false)}
-                    style={tw`w-9 h-9 rounded-full bg-gray-100 items-center justify-center`}
-                    activeOpacity={0.7}
-                  >
-                    <MaterialCommunityIcons name="close" size={18} color="#6B7280" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* Proper Scrollable List */}
-              <FlatList
-                data={groupedServicesForBarcode()}
-                keyExtractor={(g) => String(g?.key)}
-                style={tw`flex-1`}
-                contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24 }}
-                showsVerticalScrollIndicator={true}
-                keyboardShouldPersistTaps="handled"
-                nestedScrollEnabled={true}
-                removeClippedSubviews={false}
-                initialNumToRender={8}
-                maxToRenderPerBatch={8}
-                windowSize={10}
-                renderItem={({ item: group }) => {
-                  const groupKey = String(group?.key ?? 'unknown');
-                  const expanded = Boolean(sampleGroupExpanded?.[groupKey]);
-                  const groupCount = Array.isArray(group?.items) ? group.items.length : 0;
-                  const groupLabel = String(group?.sampleType || '').trim() || 'Sample Type';
-
-                  const groupBarcode = String(groupBarcodeDraft?.[groupKey] ?? '');
-                  const serviceIdsInGroup = (group?.items || [])
-                    .map((s) => s?.ServiceItemId)
-                    .filter(Boolean);
-
-                  return (
-                    <View style={[themed.childScreen, themed.border, tw`p-4 mb-4 rounded-xl`]}>
-                      <TouchableOpacity
-                        onPress={() => {
-                          setSampleGroupExpanded((prev) => ({
-                            ...(prev || {}),
-                            [groupKey]: !prev?.[groupKey],
-                          }));
-                        }}
-                        activeOpacity={0.7}
-                        style={tw`flex-row items-center justify-between`}
-                      >
-                        <View style={tw`flex-1 pr-3`}>
-                          <Text style={[themed.inputText, tw`font-semibold`]}>
-                            {groupLabel} ({groupCount})
-                          </Text>
-                          <Text style={tw`text-xs text-gray-500`}>
-                            Tap to {expanded ? 'collapse' : 'expand'} tests
-                          </Text>
-                        </View>
-
-                        <MaterialCommunityIcons
-                          name={expanded ? 'chevron-up' : 'chevron-down'}
-                          size={22}
-                          color="#6B7280"
-                        />
-                      </TouchableOpacity>
-
-                      {/* Group barcode (applies to all tests in this sample-type group) */}
-                      <View style={tw`mt-3 mb-2`}>
-                        <Text style={tw`text-xs font-medium text-gray-600 mb-1.5 ml-1`}>
-                          Barcode Number
-                        </Text>
-                        <TextInput
-                          value={groupBarcode}
-                          onChangeText={(txt) => {
-                            setGroupBarcodeDraft((prev) => ({
-                              ...(prev || {}),
-                              [groupKey]: txt,
-                            }));
-                          }}
-                          onEndEditing={(e) => {
-                            const txt = e?.nativeEvent?.text ?? '';
-                            const trimmed = String(txt).trim();
-                            if (trimmed) setBarcodeForServiceIds(serviceIdsInGroup, trimmed);
-                          }}
-                          placeholder="Enter barcode"
-                          placeholderTextColor="#9CA3AF"
-                          style={[themed.inputBox, themed.inputText]}
-                        />
-                      </View>
-
-                      {expanded ? (
-                        <View style={tw`mt-2`}>
-                          {(group?.items || []).map((s) => {
-                            const id = s?.ServiceItemId;
-                            const draft = id ? barcodeDraft?.[id] : null;
-                            const isRemarkOpen = Boolean(id && remarkExpanded?.[id]);
-                            const sampleTypes = Array.isArray(s?.SampleTypes)
-                              ? s.SampleTypes
-                              : Array.isArray(s?.sampleTypes)
-                                ? s.sampleTypes
-                                : [];
-                            const sampleTypeOptions = sampleTypes
-                              .filter(st => st?.sampleTypeId != null)
-                              .map(st => ({
-                                key: String(st.sampleTypeId),
-                                value: String(st.sampleType || ''),
-                              }));
-
-                            return (
-                              <View key={String(id)} style={[themed.border, tw`p-3 mb-3 rounded-xl`]}>
-                                <Text style={[themed.inputText, tw`mb-2`]}>
-                                  {s?.ServiceName || ''}
-                                </Text>
-
-                                {/* Sample Type Dropdown */}
-                                {sampleTypeOptions.length > 0 ? (
-                                  <View style={tw`mb-3`}>
-                                    <Text style={tw`text-xs font-medium text-gray-600 mb-1.5 ml-1`}>
-                                      Sample Type
-                                    </Text>
-                                    <SelectList
-                                      data={sampleTypeOptions}
-                                      save="key"
-                                      defaultOption={
-                                        sampleTypeOptions.find(
-                                          o => o.key === String(draft?.sampleTypeId ?? s?.SampleTypeId ?? '')
-                                        ) || sampleTypeOptions[0]
-                                      }
-                                      setSelected={(key) => {
-                                        if (!id) return;
-                                        const selected = sampleTypeOptions.find(o => o.key === String(key));
-                                        setBarcodeDraft((prev) => ({
-                                          ...(prev || {}),
-                                          [id]: {
-                                            ...(prev?.[id] || {}),
-                                            sampleTypeId: key ? Number(key) : null,
-                                            sampleType: selected?.value || '',
-                                          },
-                                        }));
-                                      }}
-                                      boxStyles={[themed.inputBox]}
-                                      inputStyles={[themed.inputText]}
-                                      dropdownStyles={[themed.childScreen, themed.border]}
-                                      dropdownTextStyles={[themed.inputText]}
-                                      search={false}
-                                    />
-                                  </View>
-                                ) : null}
-
-                                {/* Per-test barcode (optional override) */}
-                                <View style={tw`mb-3`}>
-                                  <Text style={tw`text-xs font-medium text-gray-600 mb-1.5 ml-1`}>
-                                    Barcode (override)
-                                  </Text>
-                                  <TextInput
-                                    value={draft?.barcode ?? ''}
-                                    onChangeText={(txt) => {
-                                      if (!id) return;
-                                      setBarcodeDraft((prev) => ({
-                                        ...(prev || {}),
-                                        [id]: { ...(prev?.[id] || {}), barcode: txt },
-                                      }));
-                                    }}
-                                    placeholder="Enter barcode"
-                                    placeholderTextColor="#9CA3AF"
-                                    style={[themed.inputBox, themed.inputText]}
-                                  />
-                                </View>
-
-                                {/* Remark Input */}
-                                <View>
-                                  <View style={tw`flex-row items-center justify-between`}>
-                                    <Text style={[themed.inputLabel, tw`mb-0`]}>
-                                      Test Remark
-                                    </Text>
-
-                                    <TouchableOpacity
-                                      onPress={() => {
-                                        if (!id) return;
-                                        setRemarkExpanded((prev) => ({
-                                          ...(prev || {}),
-                                          [id]: !prev?.[id],
-                                        }));
-                                      }}
-                                      style={[themed.inputBox, themed.inputText]}
-                                      activeOpacity={0.7}
-                                    >
-                                      {String(draft?.testRemark ?? '').trim() ? (
-                                        <View style={tw`bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full mr-2`}>
-                                          <Text style={tw`text-blue-600 text-[10px] font-medium`}>
-                                            Added
-                                          </Text>
-                                        </View>
-                                      ) : null}
-
-                                      <MaterialCommunityIcons
-                                        name={isRemarkOpen ? 'message-text' : 'message-text-outline'}
-                                        size={20}
-                                        color="#6B7280"
-                                      />
-                                    </TouchableOpacity>
-                                  </View>
-
-                                  {isRemarkOpen && (
-                                    <TextInput
-                                      value={draft?.testRemark ?? ''}
-                                      onChangeText={(txt) => {
-                                        if (!id) return;
-                                        setBarcodeDraft((prev) => ({
-                                          ...(prev || {}),
-                                          [id]: { ...(prev?.[id] || {}), testRemark: txt },
-                                        }));
-                                      }}
-                                      placeholder="Enter test remark (optional)"
-                                      placeholderTextColor="#9CA3AF"
-                                      multiline
-                                      numberOfLines={3}
-                                      textAlignVertical="top"
-                                      style={[themed.inputBox, themed.inputText]}
-                                    />
-                                  )}
-                                </View>
-                              </View>
-                            );
-                          })}
-                        </View>
-                      ) : null}
-                    </View>
-                  );
-                }}
-                ListEmptyComponent={
-                  <View style={tw`flex-1 justify-center items-center py-10`}>
-                    <Text style={tw`text-gray-500`}>No tests found</Text>
-                  </View>
-                }
-              />
-
-              {/* Fixed Footer */}
-              <View style={tw`px-4 pt-3 pb-5  `}>
-                <View style={tw`flex-row gap-3`}>
-                  <TouchableOpacity
-                    onPress={() => setBarcodeModalVisible(false)}
-                    style={[themed.cancelButton]}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={tw`text-gray-700 text-center font-semibold text-base`}>
-                      Cancel
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    onPress={handleBarcodeModalSave}
-                    style={tw`flex-1 bg-blue-600 py-3.5 rounded-xl shadow-sm`}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={tw`text-white text-center font-semibold text-base`}>
-                      Save & Continue
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </View>
-        </Modal>
+          onClose={() => setBarcodeModalVisible(false)}
+          onSave={handleBarcodeModalSave}
+          themed={themed}
+          groups={groupedServicesForBarcode()}
+          groupBarcodeDraft={groupBarcodeDraft}
+          setGroupBarcodeDraft={setGroupBarcodeDraft}
+          barcodeDraft={barcodeDraft}
+          setBarcodeDraft={setBarcodeDraft}
+          sampleGroupExpanded={sampleGroupExpanded}
+          setSampleGroupExpanded={setSampleGroupExpanded}
+          remarkExpanded={remarkExpanded}
+          setRemarkExpanded={setRemarkExpanded}
+          setBarcodeForServiceIds={setBarcodeForServiceIds}
+        />
 
         {/* refer doctor modal */}
         <Modal

@@ -18,13 +18,17 @@ export const getFullLocation = async (pincode) => {
 };
 
 
-export const getAddressFromLatLng = async (latitude, longitude) => {
+export const getAddressFromLatLng = async (
+  latitude,
+  longitude,
+) => {
   try {
     if (!latitude || !longitude) {
       return 'Location not available';
     }
 
-    const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`;
+    const url =
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`;
 
     const response = await fetch(url, {
       method: 'GET',
@@ -36,12 +40,16 @@ export const getAddressFromLatLng = async (latitude, longitude) => {
     const text = await response.text();
 
     let data;
-    
+
     try {
       data = JSON.parse(text);
-      console.log("data",data)
+
+      console.log(
+        'data address',
+        data,
+      );
     } catch (e) {
-      console.log('Invalid address response:', text);
+      console.log( 'Invalid address response:', text, );
       return 'Unable to fetch address';
     }
 
@@ -53,10 +61,10 @@ export const getAddressFromLatLng = async (latitude, longitude) => {
     ]
       .filter(Boolean)
       .join(', ');
-
+    console.log( 'final address', address, );
     return address || 'Address not found';
   } catch (error) {
-    console.log('address error', error);
+    console.log('address error', error, );
     return 'Unable to fetch address';
   }
 };

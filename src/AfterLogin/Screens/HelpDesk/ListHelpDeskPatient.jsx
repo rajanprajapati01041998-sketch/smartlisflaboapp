@@ -45,6 +45,8 @@ import { formatBillDateTime } from '../../../utils/dateUtils';
 const { width } = Dimensions.get('window');
 
 const ListHelpDeskPatient = () => {
+  const isFlagTrue = (value) => value === true || value === 1 || value === '1' || value === 'true' || value === 'Y';
+
   const route = useRoute();
   const navigation = useNavigation();
   const [showFilter, setShowFilter] = useState(false);
@@ -427,6 +429,7 @@ const ListHelpDeskPatient = () => {
     }
   }
   const handleUpdatetatusPicked = async (id) => {
+    console.log('Updating status for ID:', id);
     setPickingSample(true)
     try {
       const response = await api.put(`FlaboDashBoard/update-sample-status`, {
@@ -811,26 +814,26 @@ const ListHelpDeskPatient = () => {
               <View style={tw`flex-row items-center gap-2 mt-4`}>
                 <TouchableOpacity
                   onPress={() => handleUpdatetatusPicked(item?.PatientSampleTrackingId)}
-                  // disabled={item?.SamplePickup}
+                  // disabled={isFlagTrue(item?.SamplePickup)}
                   style={tw`flex-1 ${item?.SamplePickup ? `bg-green-500` : `bg-yellow-800`}  px-4 py-3 rounded-lg items-center justify-center`} activeOpacity={0.7}>
                   {pickingSample ? (
                     <ActivityIndicator color="white" />
                   ) : (
                     <View style={tw`flex-row items-center gap-1`}>
-                      <Text style={[themed.inputText]}>Sample Picked</Text>
+                      <Text style={[themed.saveButtonText]}>Sample Picked</Text>
                       {item?.SamplePickup && <EvilIcons name="check" size={20} color="white" />}
                     </View>
                   )}
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => handleUpdatetatusDelivered(item?.PatientSampleTrackingId)}
-                  disabled={item?.SampleDelivered}
+                  disabled={isFlagTrue(item?.SampleDelivered)}
                   style={tw`flex-1 ${item?.SampleDelivered ? `bg-green-500` : `bg-orange-500`}  px-4 py-3 rounded-lg items-center justify-center`} activeOpacity={0.7}>
                   {deliveringSample ? (
                     <ActivityIndicator color="white" />
                   ) : (
                     <View style={tw`flex-row items-center gap-1`}>
-                      <Text style={[themed.inputText]}>Sample Delivered</Text>
+                      <Text style={[themed.saveButtonText]}>Sample Delivered</Text>
                       {item?.SampleDelivered && <EvilIcons name="check" size={20} color="white" />}
                     </View>
                   )}

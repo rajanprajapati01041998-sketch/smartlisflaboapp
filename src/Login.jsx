@@ -14,10 +14,13 @@ import {
     Image,
     Modal,
     FlatList,
+    PermissionsAndroid,
 } from 'react-native';
 
 import LinearGradient from 'react-native-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Geolocation from '@react-native-community/geolocation';
+import { NetworkInfo } from 'react-native-network-info';
 import tw from 'twrnc';
 
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -39,6 +42,9 @@ const Login = () => {
         setUserId,
         setFieldBoyId,
         setLoginBranchId,
+        latitude,
+        longitude,
+        ipAddress,
     } = useAuth();
 
     const [userIdApp, setUserIdApp] = useState('');
@@ -54,7 +60,7 @@ const Login = () => {
     const [branches, setBranches] = useState([]);
     const [branchSearch, setBranchSearch] = useState('');
 
-    const { theme, colors } = useTheme();
+    const { theme } = useTheme();
     const themed = getThemeStyles(theme);
 
     const filteredBranches = useMemo(() => {
@@ -74,6 +80,21 @@ const Login = () => {
         });
     }, [branches, branchSearch]);
 
+    
+
+    
+
+    const getDevicePayload = async () => {
+        return {
+            browser: 'mobile',
+            device: Platform.OS === 'android' ? 'Android Phone' : 'iPhone',
+            os: Platform.OS === 'android' ? 'Android' : 'iOS',
+            latitudeApp: latitude,
+            longitudeApp: longitude,
+            ipAddress: ipAddress || '',
+        };
+    };
+
     const getBranchList = async () => {
         if (!userIdApp.trim()) {
             showToast('Enter User ID', 'warning');
@@ -89,12 +110,16 @@ const Login = () => {
             setLoading(true);
             setBranchLoading(true);
 
+            const devicePayload = await getDevicePayload();
+
             const payload = {
                 userIdApp: userIdApp.trim(),
                 passwordApp: passwordApp.trim(),
+                ...devicePayload,
             };
 
             console.log('Branch List Payload:', payload);
+            
 
             const response = await api.post(
                 'FlaboLogin/fieldBoyBranchList',
@@ -147,38 +172,55 @@ const Login = () => {
         try {
             setLoginLoading(true);
 
+            const devicePayload = await getDevicePayload();
+
             const payload = {
                 userIdApp: userIdApp.trim(),
                 passwordApp: passwordApp.trim(),
                 branchId: Number(branch.branchId),
+                ...devicePayload,
             };
 
             console.log('Field Boy Login Payload:', payload);
+
             const response = await api.post(
                 'FlaboLogin/fieldBoyLogin',
                 payload,
             );
 
-            console.log('Field Boy Login Response:', response?.data?.data?.loginBranchId);
+            console.log('Field Boy Login Response:', response?.data);
 
             if (response.data?.success) {
                 const token = response.data?.token;
                 const data = response.data?.data;
-                const branchId = response?.data?.data?.loginBranchId
-                setLoginBranchId(branchId)
                 setToken(token);
+                setUserData(data?.fieldBoyName);
+                setUserId(data?.fieldBoyId);
+                setFieldBoyId(data?.fieldBoyId);
+                setLoginBranchId(data?.loginBranchId);
+
                 await AsyncStorage.setItem('fieldBoyToken', token);
                 await AsyncStorage.setItem('fieldBoyData', JSON.stringify(data));
+                await AsyncStorage.setItem(
+                    'fieldBoyLoginHistoryId',
+                    String(data?.loginHistoryId || ''),
+                );
+
                 setBranchModalVisible(false);
                 showToast('Login Successful', 'success');
             } else {
-                showToast(response.data?.message || 'Login Failed', 'error', );
+                showToast(response.data?.message || 'Login Failed', 'error');
             }
         } catch (error) {
-            console.log(  'Field Boy Login Error:',
+            console.log(
+                'Field Boy Login Error:',
                 error?.response?.data || error?.message,
             );
-            showToast( error?.response?.data?.message || 'Invalid login or branch not mapped', 'error', );
+
+            showToast(
+                error?.response?.data?.message || 'Invalid login or branch not mapped',
+                'error',
+            );
         } finally {
             setLoginLoading(false);
         }
@@ -191,8 +233,7 @@ const Login = () => {
                 transparent
                 animationType="slide"
                 onRequestClose={() => setBranchModalVisible(false)}>
-                <TouchableWithoutFeedback
-                    onPress={() => setBranchModalVisible(false)}>
+                <TouchableWithoutFeedback onPress={() => setBranchModalVisible(false)}>
                     <View style={tw`flex-1 bg-black/50 justify-end`}>
                         <TouchableWithoutFeedback>
                             <View style={tw`bg-white rounded-t-3xl p-4 max-h-[78%]`}>
@@ -217,8 +258,7 @@ const Login = () => {
                                     </TouchableOpacity>
                                 </View>
 
-                                <View
-                                    style={tw`flex-row items-center bg-gray-100 rounded-xl px-3 mb-3`}>
+                                <View style={tw`flex-row items-center bg-gray-100 rounded-xl px-3 mb-3`}>
                                     <Ionicons name="search" size={18} color="#6B7280" />
 
                                     <TextInput
@@ -272,8 +312,7 @@ const Login = () => {
                                                 onPress={() => handleBranchSelect(item)}
                                                 activeOpacity={0.75}
                                                 style={tw`flex-row items-center p-4 mb-2 rounded-2xl bg-gray-50 border border-gray-200`}>
-                                                <View
-                                                    style={tw`h-11 w-11 rounded-full bg-green-100 items-center justify-center mr-3`}>
+                                                <View style={tw`h-11 w-11 rounded-full bg-green-100 items-center justify-center mr-3`}>
                                                     <MaterialIcons
                                                         name="business"
                                                         size={22}
@@ -319,18 +358,14 @@ const Login = () => {
                     behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                     style={tw`flex-1`}>
                     <View style={tw`h-[42%] rounded-b-[45px] overflow-hidden`}>
-                        <ImageBackground
-                            source={logo}
-                            resizeMode="cover"
-                            style={tw`flex-1 h-45 `}>
+                        <ImageBackground source={logo} resizeMode="cover" style={tw`flex-1 h-45`}>
                             <LinearGradient
                                 colors={[
                                     'rgba(10,70,55,0.90)',
                                     'rgba(10,70,55,0.82)',
                                 ]}
                                 style={tw`flex-1 justify-center items-center px-6`}>
-                                <View
-                                    style={tw`h-28 w-28 rounded-full bg-white items-center justify-center shadow-lg overflow-hidden`}>
+                                <View style={tw`h-28 w-28 rounded-full bg-white items-center justify-center shadow-lg overflow-hidden`}>
                                     <Image
                                         source={logo}
                                         resizeMode="contain"
@@ -349,8 +384,7 @@ const Login = () => {
                         </ImageBackground>
                     </View>
 
-                    <View
-                        style={tw`flex-1 bg-white -mt-10 rounded-t-[45px] px-7 pt-10`}>
+                    <View style={tw`flex-1 bg-white -mt-10 rounded-t-[45px] px-7 pt-10`}>
                         <Text style={tw`text-gray-500 text-sm mb-1`}>User ID</Text>
 
                         <TextInput
@@ -364,8 +398,7 @@ const Login = () => {
 
                         <Text style={tw`text-gray-500 text-sm mb-1`}>Password</Text>
 
-                        <View
-                            style={tw`flex-row items-center border-b border-gray-200 mb-5`}>
+                        <View style={tw`flex-row items-center border-b border-gray-200 mb-5`}>
                             <TextInput
                                 value={passwordApp}
                                 onChangeText={setPasswordApp}
@@ -376,8 +409,7 @@ const Login = () => {
                                 style={tw`flex-1 text-black text-base pb-3`}
                             />
 
-                            <TouchableOpacity
-                                onPress={() => setShowPassword(!showPassword)}>
+                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                                 <Ionicons
                                     name={showPassword ? 'eye-outline' : 'eye-off-outline'}
                                     size={22}
@@ -386,18 +418,15 @@ const Login = () => {
                             </TouchableOpacity>
                         </View>
 
-
-
                         <TouchableOpacity
                             onPress={getBranchList}
                             disabled={loading || branchLoading}
                             activeOpacity={0.85}
-                            style={[themed.loginBtn]}>
+                            style={themed.loginBtn}>
                             {loading || branchLoading ? (
                                 <ActivityIndicator color="#fff" />
                             ) : (
-                                <Text
-                                    style={tw`text-white text-center font-extrabold text-base tracking-widest`}>
+                                <Text style={tw`text-white text-center font-extrabold text-base tracking-widest`}>
                                     CONTINUE
                                 </Text>
                             )}
