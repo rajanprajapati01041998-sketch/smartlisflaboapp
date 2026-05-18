@@ -200,8 +200,6 @@ export const AuthProvider = ({ children }) => {
           await clearAuthState();
         } catch (error) {
           console.log('Error during logout:', error);
-
-
           showCustomAlert({
             title: 'Logout Failed',
             message: 'An error occurred while logging out. Please try again.',

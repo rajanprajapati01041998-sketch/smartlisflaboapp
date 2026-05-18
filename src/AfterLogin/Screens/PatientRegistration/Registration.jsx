@@ -100,7 +100,7 @@ const RegistrationScreen = () => {
   const [fieldBoyModal, setFieldBoyModal] = useState(false);
   const [selectedFieldBoy, setSelectedFieldBoy] = useState(null);
   const [selectTitleModal, setSelectTitleModal] = useState(false)
-  const [selectedTitle, setSelectedTitle] = useState("MR");
+  const [selectedTitle, setSelectedTitle] = useState("Mr.");
   const [receiptAmount, setReceiptAmount] = useState(0);
   // const [selectedTitle, setSelectedTitle] = useState(null)
   const [showBillingInfo, setShowBillingInfo] = useState(false)
@@ -170,7 +170,7 @@ const RegistrationScreen = () => {
 
   // console.log(patientData)
   useEffect(() => {
-    setSelectedTitle(patientData?.Title || "MR.");
+    setSelectedTitle(patientData?.Title || "Mr.");
     setFirstName(patientData?.FirstName || "")
     setGender(patientData?.Gender || "MALE")
     setGender(patientData?.Gender || "")
@@ -194,9 +194,9 @@ const RegistrationScreen = () => {
   useEffect(() => {
     const title = String(selectedTitle || '').toLowerCase();
 
-    if (['mr', 'mr.', 'master','dr.'].includes(title)) {
+    if (['Mr.', 'mr.', 'master','dr.'].includes(title)) {
       setGender('MALE');
-    } else if (['mrs', 'mrs.', 'miss.', 'ms', 'ms.'].includes(title)) {
+    } else if (['mrs.', 'mrs.', 'miss.', 'ms.', 'ms.'].includes(title)) {
       setGender('FEMALE');
     } else {
       setGender('OTHER');

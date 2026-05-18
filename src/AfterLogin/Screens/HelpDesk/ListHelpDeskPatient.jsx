@@ -412,11 +412,16 @@ const ListHelpDeskPatient = () => {
   };
 
 
-  const handleUpdatetatusDelivered = async (id) => {
+  const handleUpdatetatusDelivered = async (item) => {
     setDeliveringSample(true)
+    if (isFlagTrue(item?.SampleDelivered)) {
+      showToast('Sample already delivered', 'warning');
+      setDeliveringSample(false)
+      return;
+    }
     try {
-      const response = await api.put(`FlaboDashBoard/update-sample-status`, {
-        id: id,
+      const response = await api.post(`FlaboDashBoard/update-sample-status`, {
+        id: item?.PatientSampleTrackingId,
         sampleDelivered: true
       })
       setDeliveringSample(false);
@@ -428,18 +433,23 @@ const ListHelpDeskPatient = () => {
       console.log('Update status error:', error?.response?.data || error?.message);
     }
   }
-  const handleUpdatetatusPicked = async (id) => {
-    console.log('Updating status for ID:', id);
+  const handleUpdatetatusPicked = async (item) => {
+    console.log('Updating status for ID:', item?.PatientSampleTrackingId);
+    if (isFlagTrue(item?.SamplePickup)) {
+      showToast('Sample already picked', 'warning');
+      return;
+    }
     setPickingSample(true)
     try {
-      const response = await api.put(`FlaboDashBoard/update-sample-status`, {
-        id: id,
+      console.log('Sending update request for ID:', item?.PatientSampleTrackingId);
+      const response = await api.post(`FlaboDashBoard/update-sample-status`, {
+        id: item?.PatientSampleTrackingId,
         samplePickup: true
       })
       setPickingSample(false);
       showToast('Status updated to Sample Picked', 'success');
       await gethelpDesk();
-      navigation.navigate('FlaboShareLiveLocation', { id });
+      navigation.navigate('FlaboShareLiveLocation', { id:item?.PatientSampleTrackingId });
     } catch (error) {
       setPickingSample(false);
       showToast('Failed to update status', 'error');
@@ -614,7 +624,7 @@ const ListHelpDeskPatient = () => {
                         value={String(item.Barcode).trim()}
                         format="CODE128"
                         width={1.2}
-                        maxWidth={Math.min(240, width - 160)}
+                        maxWidth={Math.min(80, width - 200)}
                         height={24}
                         lineColor={theme === 'dark' ? '#3f464e' : '#848994'}
                         background="transparent"
@@ -813,9 +823,9 @@ const ListHelpDeskPatient = () => {
 
               <View style={tw`flex-row items-center gap-2 mt-4`}>
                 <TouchableOpacity
-                  onPress={() => handleUpdatetatusPicked(item?.PatientSampleTrackingId)}
+                  onPress={() => handleUpdatetatusPicked(item)}
                   // disabled={isFlagTrue(item?.SamplePickup)}
-                  style={tw`flex-1 ${item?.SamplePickup ? `bg-green-500` : `bg-yellow-800`}  px-4 py-3 rounded-lg items-center justify-center`} activeOpacity={0.7}>
+                  style={tw`flex-1 ${item?.SamplePickup ? `bg-green-400` : `bg-yellow-800`}  px-4 py-3 rounded-lg items-center justify-center`} activeOpacity={0.7}>
                   {pickingSample ? (
                     <ActivityIndicator color="white" />
                   ) : (
@@ -825,9 +835,9 @@ const ListHelpDeskPatient = () => {
                     </View>
                   )}
                 </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => handleUpdatetatusDelivered(item?.PatientSampleTrackingId)}
-                  disabled={isFlagTrue(item?.SampleDelivered)}
+                {item?.SamplePickup && <TouchableOpacity
+                  onPress={() => handleUpdatetatusDelivered(item)}
+                  // disabled={isFlagTrue(item?.SampleDelivered)}
                   style={tw`flex-1 ${item?.SampleDelivered ? `bg-green-500` : `bg-orange-500`}  px-4 py-3 rounded-lg items-center justify-center`} activeOpacity={0.7}>
                   {deliveringSample ? (
                     <ActivityIndicator color="white" />
@@ -838,7 +848,7 @@ const ListHelpDeskPatient = () => {
                     </View>
                   )}
 
-                </TouchableOpacity>
+                </TouchableOpacity>}
               </View>
             </View>
           )}

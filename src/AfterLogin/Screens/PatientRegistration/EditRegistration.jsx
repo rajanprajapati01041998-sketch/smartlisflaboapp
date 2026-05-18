@@ -27,7 +27,7 @@ const EditRegistration = () => {
   const { theme } = useTheme();
   const { showToast } = useToast();
   const themed = getThemeStyles(theme);
-  const { ipAddress, loginBranchId, userId,corporateId } = useAuth();
+  const { ipAddress, loginBranchId, userId, corporateId } = useAuth();
 
   const [serviceItemModal, setServoceItemModal] = useState(false);
   const [basicInfoExpanded, setBasicInfoExpanded] = useState(false);
@@ -58,6 +58,9 @@ const EditRegistration = () => {
       getPatientData(visitId);
     }
   }, [visitId]);
+
+
+
 
   const getPatientData = async (visitIdValue) => {
     setLoading(true);
@@ -231,11 +234,11 @@ const EditRegistration = () => {
         patientId:
           Number(
             patientDetails?.PatientId ||
-              route?.params?.patientData?.PatientId
+            route?.params?.patientData?.PatientId
           ) || 0,
         branchId: Number(loginBranchId) || 0,
         loginBranchId: Number(loginBranchId) || 0,
-        userId: Number(userId) || 0,
+        userId: 1,
         ipAddress: ipAddress || '',
         discountAmount: 0,
         services: newServicesOnly.map((item) => ({
@@ -248,7 +251,7 @@ const EditRegistration = () => {
           isUrgent: Number(item?.IsUrgent || item?.isUrgent) || 0,
           barcode: item?.Barcode || item?.barcode || '',
           testRemark: item?.TestRemark || item?.testRemark || '',
-          corporateId: Number(corporateId) || 0,
+          corporateId: corporateId,
 
         })),
       };
@@ -407,7 +410,7 @@ const EditRegistration = () => {
                   <Text style={[themed.labelText, tw`text-xs mb-1 opacity-70`]}>
                     Full Name
                   </Text>
-                  <Text style={[themed.mutedText,tw`font-semibold`]}>
+                  <Text style={[themed.mutedText, tw`font-semibold`]}>
                     {form.Title} {displayName} /({form.Gender})
                   </Text>
                 </View>
@@ -425,10 +428,10 @@ const EditRegistration = () => {
                   <Text style={[themed.labelText, tw`text-xs mb-1 opacity-70`]}>
                     Age
                   </Text>
-                  <Text style={[themed.mutedText,tw`font-semibold`]}>
+                  <Text style={[themed.mutedText, tw`font-semibold`]}>
                     {form.AgeYears} Years {form.AgeMonths} Months {form.AgeDays} Days
                   </Text>
-                  <Text style={[themed.mutedText,tw`font-semibold`]}>
+                  <Text style={[themed.mutedText, tw`font-semibold`]}>
                     DOB: {form.DOB}
                   </Text>
                 </View>
