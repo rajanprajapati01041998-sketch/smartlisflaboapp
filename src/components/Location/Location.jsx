@@ -108,6 +108,7 @@ const AdminTrackFieldBoy = () => {
 
       if (list.length > 0 && !selectedFieldBoy) {
         const first = list[0];
+
         setSelectedFieldBoy(first);
         setTrackingUserId(String(first.fieldBoyId));
         trackingUserIdRef.current = String(first.fieldBoyId);
@@ -186,10 +187,16 @@ const AdminTrackFieldBoy = () => {
         setStatus('Socket reconnecting...');
       });
 
-      connection.onreconnected(() => {
+      connection.onreconnected(async () => {
         console.log('Socket reconnected');
         setSocketConnected(true);
         setStatus('Socket reconnected');
+
+        try {
+          await connection.invoke('JoinAdminGroup');
+        } catch (error) {
+          console.log('JoinAdminGroup reconnect error:', error);
+        }
       });
 
       connection.onclose(error => {
@@ -232,12 +239,26 @@ const AdminTrackFieldBoy = () => {
         }
       });
 
+      connection.on('FieldBoyConnected', data => {
+        console.log('FieldBoyConnected Notification:', data);
+
+        const fieldBoyId = data?.fieldBoyId || data?.FieldBoyId;
+        const message =
+          data?.message ||
+          data?.Message ||
+          `Field Boy ${fieldBoyId} is live now`;
+
+        Alert.alert('Field Boy Live', message);
+
+        setStatus(message);
+      });
+
       await connection.start();
       await connection.invoke('JoinAdminGroup');
 
       console.log('================================');
       console.log('Admin socket connected');
-      console.log('You are live');
+      console.log('Admin joined group');
       console.log('================================');
 
       hubRef.current = connection;
@@ -290,6 +311,7 @@ const AdminTrackFieldBoy = () => {
 
   useEffect(() => {
     fetchFieldBoyList();
+    connectSocket();
 
     return () => {
       if (hubRef.current) {
@@ -372,8 +394,7 @@ const AdminTrackFieldBoy = () => {
         )}
       </Map>
 
-      <View
-        style={tw`absolute top-0 left-0 right-0 z-50 bg-white pt-14 pb-4 px-3 rounded-b-3xl`}>
+      <View style={tw`absolute top-0 left-0 right-0 z-50 bg-white pt-14 pb-4 px-3 rounded-b-3xl`}>
         <TouchableOpacity
           onPress={() => {
             fetchFieldBoyList();
@@ -381,7 +402,9 @@ const AdminTrackFieldBoy = () => {
           }}
           style={tw`border border-gray-300 rounded-xl px-4 py-4 bg-white`}>
           <Text style={tw`text-black font-semibold text-base`}>
-            {selectedFieldBoy ? selectedFieldBoy.fieldBoyName : 'Choose Field Boy'}
+            {selectedFieldBoy
+              ? selectedFieldBoy.fieldBoyName
+              : 'Choose Field Boy'}
           </Text>
         </TouchableOpacity>
 
@@ -485,7 +508,7 @@ const AdminTrackFieldBoy = () => {
                     })
                   ) : (
                     <Text style={tw`text-center text-red-500 py-5`}>
-                      No field boy found mast hai
+                      No field boy found
                     </Text>
                   )}
                 </ScrollView>

@@ -33,15 +33,13 @@ import { getThemeStyles } from '../../../utils/themeStyles';
 const { width } = Dimensions.get('window');
 
 const Profile = () => {
-  const { logout, userData } = useAuth();
+  const { logout, userData ,fieldBoyData} = useAuth();
   const { theme, toggleTheme } = useTheme();
   const themed = getThemeStyles(theme);
   const navigation = useNavigation();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-
   const [labname, setLabName] = useState('');
   const [userName, setUserName] = useState('');
-
   const scaleValue = useSharedValue(1);
   const opacityValue = useSharedValue(1);
 
@@ -79,7 +77,7 @@ const Profile = () => {
   });
 
   const profileItems = [
-    { icon: 'person', name: 'User ID', value: userName, color: '#8b5cf6' },
+    { icon: 'person', name: 'User ID', value: fieldBoyData?.userIdApp, color: '#8b5cf6' },
     
   ];
 

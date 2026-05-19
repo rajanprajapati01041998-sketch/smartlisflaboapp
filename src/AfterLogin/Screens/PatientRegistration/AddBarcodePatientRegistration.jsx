@@ -7,10 +7,15 @@ import {
   TouchableWithoutFeedback,
   Modal,
   FlatList,
+  Platform,
+  PermissionsAndroid,
+  Alert,
 } from 'react-native';
 import tw from 'twrnc';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import {SelectList} from 'react-native-dropdown-select-list';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { SelectList } from 'react-native-dropdown-select-list';
+import { useNavigation } from '@react-navigation/native';
 
 const AddBarcodePatientRegistration = ({
   visible,
@@ -28,6 +33,49 @@ const AddBarcodePatientRegistration = ({
   setRemarkExpanded,
   setBarcodeForServiceIds,
 }) => {
+  const navigation = useNavigation();
+
+  const requestCameraPermission = async () => {
+    if (Platform.OS !== 'android') return true;
+
+    try {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.CAMERA,
+      );
+
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
+    } catch (e) {
+      return false;
+    }
+  };
+
+  const onPressScan = async (groupKey, serviceIds) => {
+    const ok = await requestCameraPermission();
+
+    if (!ok) {
+      Alert.alert(
+        'Camera permission',
+        'Please allow camera permission to scan barcode.',
+      );
+      return;
+    }
+
+    navigation.navigate('BarcodeScanner', {
+      onScanSuccess: code => {
+        const scannedCode = String(code || '').trim();
+
+        if (!scannedCode) return;
+
+        setGroupBarcodeDraft(prev => ({
+          ...(prev || {}),
+          [groupKey]: scannedCode,
+        }));
+
+        setBarcodeForServiceIds(serviceIds, scannedCode);
+      },
+    });
+  };
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={themed.modalOverlay}>
@@ -36,7 +84,7 @@ const AddBarcodePatientRegistration = ({
         </TouchableWithoutFeedback>
 
         <View style={[themed.modalContainer, tw`w-full h-[85%] rounded-t-3xl overflow-hidden`]}>
-          <View style={tw`px-4 pt-4 pb-3 border-b border-gray-100`}>
+          <View style={[tw`px-4 pt-4 pb-3  `]}>
             <View style={tw`flex-row justify-between items-center`}>
               <View style={tw`flex-1 pr-3`}>
                 <Text style={themed.modalHeaderTitle}>Barcodes & Remarks</Text>
@@ -57,11 +105,13 @@ const AddBarcodePatientRegistration = ({
             style={tw`flex-1`}
             contentContainerStyle={tw`px-4 pt-3 pb-6`}
             keyboardShouldPersistTaps="handled"
-            renderItem={({item: group}) => {
+            renderItem={({ item: group }) => {
               const groupKey = String(group?.key ?? 'unknown');
               const expanded = !!sampleGroupExpanded?.[groupKey];
               const groupBarcode = String(groupBarcodeDraft?.[groupKey] ?? '');
-              const serviceIds = (group?.items || []).map(s => s?.ServiceItemId).filter(Boolean);
+              const serviceIds = (group?.items || [])
+                .map(s => s?.ServiceItemId)
+                .filter(Boolean);
 
               return (
                 <View style={[themed.childScreen, themed.border, tw`p-4 mb-4 rounded-xl`]}>
@@ -93,22 +143,32 @@ const AddBarcodePatientRegistration = ({
                     <Text style={tw`text-xs font-medium text-gray-600 mb-1.5 ml-1`}>
                       Barcode Number
                     </Text>
-                    <TextInput
-                      value={groupBarcode}
-                      onChangeText={txt =>
-                        setGroupBarcodeDraft(prev => ({
-                          ...(prev || {}),
-                          [groupKey]: txt,
-                        }))
-                      }
-                      onEndEditing={e => {
-                        const txt = String(e?.nativeEvent?.text ?? '').trim();
-                        if (txt) setBarcodeForServiceIds(serviceIds, txt);
-                      }}
-                      placeholder="Enter barcode"
-                      placeholderTextColor="#9CA3AF"
-                      style={[themed.inputBox, themed.inputText]}
-                    />
+
+                    <View style={tw`flex-row items-center gap-2`}>
+                      <TextInput
+                        value={groupBarcode}
+                        onChangeText={txt => {
+                          setGroupBarcodeDraft(prev => ({
+                            ...(prev || {}),
+                            [groupKey]: txt,
+                          }));
+                        }}
+                        onEndEditing={e => {
+                          const txt = String(e?.nativeEvent?.text ?? '').trim();
+                          if (txt) setBarcodeForServiceIds(serviceIds, txt);
+                        }}
+                        placeholder="Enter barcode"
+                        placeholderTextColor="#9CA3AF"
+                        style={[themed.inputBox, themed.inputText, tw`flex-1`]}
+                      />
+
+                      <TouchableOpacity
+                        style={tw`bg-blue-500 px-4 h-12 rounded-xl flex-row items-center justify-center`}
+                        activeOpacity={0.7}
+                        onPress={() => onPressScan(groupKey, serviceIds)}>
+                        <MaterialIcons name="qr-code-scanner" size={20} color="white" />
+                      </TouchableOpacity>
+                    </View>
                   </View>
 
                   {expanded &&
@@ -132,7 +192,9 @@ const AddBarcodePatientRegistration = ({
 
                       return (
                         <View key={String(id)} style={[themed.border, tw`p-3 mb-3 rounded-xl`]}>
-                          <Text style={[themed.inputText, tw`mb-2`]}>{s?.ServiceName || ''}</Text>
+                          <Text style={[themed.inputText, tw`mb-2`]}>
+                            {s?.ServiceName || ''}
+                          </Text>
 
                           {sampleTypeOptions.length > 0 && (
                             <View style={tw`mb-3`}>
@@ -145,12 +207,18 @@ const AddBarcodePatientRegistration = ({
                                 save="key"
                                 defaultOption={
                                   sampleTypeOptions.find(
-                                    o => o.key === String(draft?.sampleTypeId ?? s?.SampleTypeId ?? ''),
+                                    o =>
+                                      o.key ===
+                                      String(draft?.sampleTypeId ?? s?.SampleTypeId ?? ''),
                                   ) || sampleTypeOptions[0]
                                 }
                                 setSelected={key => {
                                   if (!id) return;
-                                  const selected = sampleTypeOptions.find(o => o.key === String(key));
+
+                                  const selected = sampleTypeOptions.find(
+                                    o => o.key === String(key),
+                                  );
+
                                   setBarcodeDraft(prev => ({
                                     ...(prev || {}),
                                     [id]: {
@@ -179,6 +247,7 @@ const AddBarcodePatientRegistration = ({
                             <Text style={tw`text-xs font-medium text-gray-600`}>
                               Test Remark
                             </Text>
+
                             <MaterialCommunityIcons
                               name={isRemarkOpen ? 'chevron-up' : 'chevron-down'}
                               size={20}
@@ -191,6 +260,7 @@ const AddBarcodePatientRegistration = ({
                               value={draft?.testRemark ?? ''}
                               onChangeText={txt => {
                                 if (!id) return;
+
                                 setBarcodeDraft(prev => ({
                                   ...(prev || {}),
                                   [id]: {
@@ -213,7 +283,7 @@ const AddBarcodePatientRegistration = ({
             }}
           />
 
-          <View style={tw`p-4 border-t border-gray-100 flex-row gap-3`}>
+          <View style={tw`p-4  flex-row gap-3`}>
             <TouchableOpacity onPress={onClose} style={[themed.card, tw`flex-1 py-3 rounded-xl`]}>
               <Text style={[themed.inputText, tw`text-center font-semibold`]}>Cancel</Text>
             </TouchableOpacity>

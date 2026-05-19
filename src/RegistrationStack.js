@@ -5,6 +5,7 @@ import { useTheme } from '../Authorization/ThemeContext';
 import Registration from './AfterLogin/Screens/PatientRegistration/Registration';
 import PatientInformation from './AfterLogin/Screens/PatientRegistration/PatientInformation';
 import EditRegistration from './AfterLogin/Screens/PatientRegistration/EditRegistration';
+import BarcodeScannerScreen from './BarcodeScannerScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -41,6 +42,15 @@ export default function RegistrationStack() {
         name="EditRegistration"
         component={EditRegistration}
         options={{ title: 'Patient Details' }}
+      />
+
+      <Stack.Screen
+        name="BarcodeScanner"
+        component={BarcodeScannerScreen}
+        options={{
+          headerShown: false,
+          presentation: 'modal',
+        }}
       />
     </Stack.Navigator>
   );

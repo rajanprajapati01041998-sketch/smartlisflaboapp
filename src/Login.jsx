@@ -45,6 +45,7 @@ const Login = () => {
         latitude,
         longitude,
         ipAddress,
+        setFieldBoyData
     } = useAuth();
 
     const [userIdApp, setUserIdApp] = useState('');
@@ -189,8 +190,6 @@ const Login = () => {
             );
 
             console.log('Field Boy Login Response:', response?.data);
-
-            if (response.data?.success) {
                 const token = response.data?.token;
                 const data = response.data?.data;
                 setToken(token);
@@ -198,7 +197,7 @@ const Login = () => {
                 setUserId(data?.fieldBoyId);
                 setFieldBoyId(data?.fieldBoyId);
                 setLoginBranchId(data?.loginBranchId);
-
+                setFieldBoyData(data);
                 await AsyncStorage.setItem('fieldBoyToken', token);
                 await AsyncStorage.setItem('fieldBoyData', JSON.stringify(data));
                 await AsyncStorage.setItem(
@@ -208,9 +207,7 @@ const Login = () => {
 
                 setBranchModalVisible(false);
                 showToast('Login Successful', 'success');
-            } else {
-                showToast(response.data?.message || 'Login Failed', 'error');
-            }
+           
         } catch (error) {
             console.log(
                 'Field Boy Login Error:',

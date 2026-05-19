@@ -45,7 +45,7 @@ const DashboardCollection = forwardRef(({ fromDate, toDate }, ref) => {
 
   const themed = getThemeStyles(themeMode)
 
-  const { fieldBoyId, userId } = useAuth();
+  const { fieldBoyId, userId ,loginBranchId} = useAuth();
   const finalFieldBoyId = fieldBoyId
 
   // Animation values for floating waves
@@ -124,6 +124,7 @@ const DashboardCollection = forwardRef(({ fromDate, toDate }, ref) => {
           fieldBoyId: id,
           fromDate: finalFromDate,
           toDate: finalToDate,
+          loginBranchIdList:loginBranchId
         },
       });
 

@@ -26,6 +26,7 @@ import TRF_Print from './AfterLogin/Screens/PatientRegistration/TRF_Print';
 import LABReceipts from './AfterLogin/Screens/PatientRegistration/LabReceipts';
 import Location from './components/Location/Location';
 import FlaboShareLiveLocation from './AfterLogin/Screens/HelpDesk/FlaboShareLiveLocation';
+import UpdateSampleStatus from './components/SampleStatus/UpdateSampleStatus';
 
 const Stack = createNativeStackNavigator();
 
@@ -276,6 +277,11 @@ export default function DashboardStack() {
         name="Track Location"
         component={Location}
         options={{ title: 'Location' }}
+      />
+      <Stack.Screen
+        name="UpdateSampleStatus"
+        component={UpdateSampleStatus}
+        options={{ title: 'Update Sample' }}
       />
     </Stack.Navigator>
   );

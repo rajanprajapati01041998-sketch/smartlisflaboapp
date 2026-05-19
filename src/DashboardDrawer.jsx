@@ -13,17 +13,14 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Feather from 'react-native-vector-icons/Feather';
 import tw from 'twrnc';
-
 import { useTheme } from '../Authorization/ThemeContext';
 import { useAuth } from '../Authorization/AuthContext';
 import BottomTabNavigation from './BottomNavigation';
-
 const Drawer = createDrawerNavigator();
 
 function DashboardDrawerContent(props) {
   const { colors, theme } = useTheme();
-  const { logout, userData } = useAuth();
-
+  const { logout, userData, fieldBoyData,logoutLoading } = useAuth();
   const [search, setSearch] = useState('');
 
   const goTo = screenName => {
@@ -40,13 +37,21 @@ function DashboardDrawerContent(props) {
   };
 
   const menuItems = [
-     {
+    {
       label: 'New Registration',
       subTitle: 'Register new patient',
       iconType: 'mi',
       icon: 'person-add',
       color: '#c3c832',
       onPress: () => goTo('Registration'),
+    },
+    {
+      label: 'Update Sample',
+      subTitle: 'Update sample information',
+      iconType: 'mi',
+      icon: 'bloodtype',
+      color: '#c20404',
+      onPress: () => goTo('UpdateSampleStatus'),
     },
     {
       label: 'Patient Information',
@@ -80,7 +85,7 @@ function DashboardDrawerContent(props) {
     //   color: '#ea33a1',
     //   onPress: () => goToTab('HelpDesk'),
     // },
-     {
+    {
       label: 'Track Location',
       subTitle: 'View Live laction',
       iconType: 'mi',
@@ -137,7 +142,7 @@ function DashboardDrawerContent(props) {
               ]}
             >
               <Text style={tw`text-white text-xl font-bold`}>
-                {(userData?.name || userData?.userName || 'G')
+                {(fieldBoyData?.fieldBoyName || 'G')
                   ?.charAt(0)
                   ?.toUpperCase()}
               </Text>
@@ -146,9 +151,9 @@ function DashboardDrawerContent(props) {
             <View style={tw`ml-3 flex-1`}>
               <Text
                 numberOfLines={1}
-                style={[tw`text-base font-bold`, { color: colors.text }]}
+                style={[tw`text-base font-bold uppercase`, { color: colors.text }]}
               >
-                {userData?.name || userData?.user?.displayName || 'Gravity User'}
+                {fieldBoyData?.fieldBoyName || 'Gravity User'}
               </Text>
 
               <Text
@@ -288,6 +293,7 @@ function DashboardDrawerContent(props) {
       >
         <TouchableOpacity
           activeOpacity={0.75}
+          disabled={logoutLoading}
           onPress={logout}
           style={[
             tw`p-3 rounded-2xl flex-row items-center`,

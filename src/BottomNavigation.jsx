@@ -33,9 +33,13 @@ const HIDE_TABS_BY_TAB = {
     'TRF_Print',
     'LABReceipts',
     'BarcodeScanner',
-    'Track Location'
+    'Track Location',
+    'BarcodeScanner',
+    'UpdateSampleStatus',
+    'FlaboShareLiveLocation'
+
   ]),
-  Registration: new Set(['PatientInformation']),
+  Registration: new Set(['PatientInformation','BarcodeScanner']),
   Sample: new Set([
     'ListHelpDeskPatient',
     'ViewLabReport',
@@ -48,7 +52,9 @@ const HIDE_TABS_BY_TAB = {
     'LABReceipts',
     'BarcodeScanner',
     'FlaboShareLiveLocation',
-    'Track Location'
+    'Track Location',
+    'BarcodeScanner',
+    'UpdateSampleStatus'
   ]),
 };
 

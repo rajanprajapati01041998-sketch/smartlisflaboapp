@@ -33,6 +33,8 @@ export const AuthProvider = ({ children }) => {
   const [longitude, setLongitude] = useState(null);
   const [loginHistoryId, setLoginHistoryId] = useState(null);
   const { showCustomAlert, AlertComponent } = useCustomAlert();
+  const [logoutLoading, setLogoutLoading] = useState(false);
+
 
   useEffect(() => {
     loadStoredData();
@@ -185,6 +187,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+
+    if (logoutLoading) {
+      return;
+    }
+
     showCustomAlert({
       title: 'Logout Confirmation',
       message: 'Are you sure you want to logout?',
@@ -192,21 +199,33 @@ export const AuthProvider = ({ children }) => {
       cancelText: 'Cancel',
       type: 'warning',
       onConfirm: async () => {
+        if (logoutLoading) {
+          return;
+        }
         try {
-          if(!loginHistoryId) {
-            console.log('No loginHistoryId found, skipping logout API call.');
+          setLogoutLoading(true);
+          if (!loginHistoryId) {
+            console.log(
+              'No loginHistoryId found, skipping logout API call.'
+            );
+          } else {
+            await api.post(
+              `FlaboLogin/fieldBoyLogout?loginHistoryId=${loginHistoryId}`
+            );
           }
-          await api.post(`FlaboLogin/fieldBoyLogout?loginHistoryId=${loginHistoryId}`)
           await clearAuthState();
         } catch (error) {
           console.log('Error during logout:', error);
           showCustomAlert({
             title: 'Logout Failed',
-            message: 'An error occurred while logging out. Please try again.',
+            message:
+              'An error occurred while logging out. Please try again.',
             confirmText: 'OK',
             cancelText: null,
             type: 'error',
           });
+        } finally {
+          setLogoutLoading(false);
         }
       },
     });
@@ -226,19 +245,20 @@ export const AuthProvider = ({ children }) => {
           logout,
           token, setToken,
           userId, setUserId,
-          ipAddress, 
+          ipAddress,
           serviceItem, setServiceItem,
           selectedDoctor, setSelectedDoctor,
-          corporateId,setCorporateId,
+          corporateId, setCorporateId,
           loginBranchId,
           setLoginBranchId,
           patientData, setPatientData,
           hosId, setHosId,
           addBarcode, setAddBarcode,
           barcodeScan, setBarcodeScan,
-          latitude,  setLatitude,
+          latitude, setLatitude,
           longitude, setLongitude,
-          loginHistoryId, setLoginHistoryId
+          loginHistoryId, setLoginHistoryId,
+          logoutLoading
         }}>
         {children}
       </AuthContext.Provider>

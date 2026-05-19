@@ -22,7 +22,6 @@ import api, { API_BASE_URL } from '../../../../Authorization/api';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import Feather from 'react-native-vector-icons/Feather';
-import EvilIcons from 'react-native-vector-icons/EvilIcons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import QRCode from 'react-native-qrcode-svg';
@@ -45,8 +44,6 @@ import { formatBillDateTime } from '../../../utils/dateUtils';
 const { width } = Dimensions.get('window');
 
 const ListHelpDeskPatient = () => {
-  const isFlagTrue = (value) => value === true || value === 1 || value === '1' || value === 'true' || value === 'Y';
-
   const route = useRoute();
   const navigation = useNavigation();
   const [showFilter, setShowFilter] = useState(false);
@@ -69,8 +66,6 @@ const ListHelpDeskPatient = () => {
   const [isPrintHeader, setIsPrintHeader] = useState(true)
   const [loginHeader, setLoginHeader] = useState(true)
   const [mainHeader, setMainHeader] = useState(false)
-  const [pickingSample, setPickingSample] = useState(false)
-  const [deliveringSample, setDeliveringSample] = useState(false)
 
   const { theme } = useTheme();
   const themed = getThemeStyles(theme);
@@ -168,7 +163,7 @@ const ListHelpDeskPatient = () => {
     console.log('help payload', payload);
     try {
       setLoading(true);
-      const response = await api.post(`HelpDesk/flabo_help_desk`, payload);
+      const response = await api.post(`HelpDesk/help_desk`, payload);
       const responseData = response?.data?.data || response?.data || [];
       setData(responseData);
       setFilteredData(responseData);
@@ -411,53 +406,6 @@ const ListHelpDeskPatient = () => {
     }
   };
 
-
-  const handleUpdatetatusDelivered = async (item) => {
-    setDeliveringSample(true)
-    if (isFlagTrue(item?.SampleDelivered)) {
-      showToast('Sample already delivered', 'warning');
-      setDeliveringSample(false)
-      return;
-    }
-    try {
-      const response = await api.post(`FlaboDashBoard/update-sample-status`, {
-        id: item?.PatientSampleTrackingId,
-        sampleDelivered: true
-      })
-      setDeliveringSample(false);
-      showToast('Status updated to Sample Delivered', 'success');
-      await gethelpDesk();
-    } catch (error) {
-      setDeliveringSample(false);
-      showToast('Failed to update status', 'error');
-      console.log('Update status error:', error?.response?.data || error?.message);
-    }
-  }
-  const handleUpdatetatusPicked = async (item) => {
-    console.log('Updating status for ID:', item?.PatientSampleTrackingId);
-    if (isFlagTrue(item?.SamplePickup)) {
-      showToast('Sample already picked', 'warning');
-      return;
-    }
-    setPickingSample(true)
-    try {
-      console.log('Sending update request for ID:', item?.PatientSampleTrackingId);
-      const response = await api.post(`FlaboDashBoard/update-sample-status`, {
-        id: item?.PatientSampleTrackingId,
-        samplePickup: true
-      })
-      setPickingSample(false);
-      showToast('Status updated to Sample Picked', 'success');
-      await gethelpDesk();
-      navigation.navigate('FlaboShareLiveLocation', { id:item?.PatientSampleTrackingId });
-    } catch (error) {
-      setPickingSample(false);
-      showToast('Failed to update status', 'error');
-      console.log('Update status error:', error?.response?.data || error?.message);
-    }
-    // Alert.alert('ID', String(id));
-  };
-
   const handleDownloadTebularReport = async (id, name, reporTypeId) => {
     try {
       setDownloadingId(id);
@@ -545,314 +493,242 @@ const ListHelpDeskPatient = () => {
     const chevronRotation = getChevronRotation(index);
 
     return (
-      <View style={tw`relative`}>
-        <View
-          style={[
-            themed.globalCard,
-            tw`rounded-lg mb-4 shadow-sm `,
-            { backgroundColor: globalCardColor.bg, borderLeftWidth: 4, borderLeftColor: globalCardColor.border }
-          ]}
+      <View
+        style={[
+          themed.globalCard,
+          tw`rounded-lg mb-4 shadow-sm overflow-hidden`,
+          { backgroundColor: globalCardColor.bg, borderLeftWidth: 4, borderLeftColor: globalCardColor.border }
+        ]}
+      >
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => toggleItem(index)}
+          style={tw`flex-col py-2 px-4`}
         >
-          {(item?.SamplePickup || item?.SampleDelivered) && (
-            <View
-              style={tw`absolute -top-2 -right-2 flex-row items-center z-50`}
-            >
+          <View style={tw`flex-row justify-between items-start`}>
+            <View style={tw`flex-row items-center flex-1`}>
               <View
                 style={[
-                  tw`bg-white rounded-full min-w-[32px] h-8 px-2 items-center justify-center border`,
-                  {
-                    borderColor:
-                      item?.SampleDelivered && item?.SamplePickup
-                        ? '#7c3aed'
-                        : item?.SampleDelivered
-                          ? '#2563eb'
-                          : '#16a34a',
-                  },
+                  tw`mr-3 rounded-full p-1`,
+                  themed.globalCard,
+                  { backgroundColor: theme === 'dark' ? '#111827' : '#FFFFFF' }
                 ]}
               >
-                <Text
+                <MaterialCommunityIcons name="account" size={24} color={genderIcon.color} />
+              </View>
+
+              <View style={tw`flex-1 justify-start items-start`}>
+                <Text style={[tw`text-md font-bold`]}>
+                  {item.PatientName || 'No Name'}
+                </Text>
+
+                <Text style={[themed.transactionLabel, tw`mt-0.5 text-xs`]}>
+                  {`${item.UHID || 'N/A'} • ${formatDateOnly(item.BillDate)}`}
+                </Text>
+
+                {item.Barcode && (
+                  <View style={tw`mt-1`}>
+                    <Barcode
+                      value={String(item.Barcode).trim()}
+                      format="CODE128"
+                      width={1.2}
+                      maxWidth={Math.min(240, width - 160)}
+                      height={24}
+                      lineColor={theme === 'dark' ? '#3f464e' : '#848994'}
+                      background="transparent"
+                      text={String(item.Barcode).trim()}
+                      textStyle={tw`text-[10px] text-gray-700`}
+                      onError={(e) => console.warn('Barcode render error:', e?.message || e)}
+                      style={{ alignSelf: 'flex-start' }}
+                    />
+                  </View>
+                )}
+              </View>
+
+              <View
+                style={[
+                  themed.globalCard,
+                  tw`flex-row justify-between items-center p-3 rounded-full`
+                ]}
+              >
+                <Animated.View
                   style={[
-                    tw`text-xs font-bold`,
-                    {
-                      color:
-                        item?.SampleDelivered && item?.SamplePickup
-                          ? '#7c3aed'
-                          : item?.SampleDelivered
-                            ? '#2563eb'
-                            : '#16a34a',
-                    },
+                    themed.modalCloseButton,
+                    tw`rounded-full p-1.5`,
+                    { transform: [{ rotate: chevronRotation }] }
                   ]}
                 >
-                  {item?.SampleDelivered && item?.SamplePickup
-                    ? 'PD'
-                    : item?.SampleDelivered
-                      ? 'D'
-                      : 'P'}
+                  <Entypo name="chevron-down" size={18} color={themed.chevronColor} />
+                </Animated.View>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
+
+        {isOpen && (
+          <View style={[themed.transactionDivider, themed.globalCard, tw`p-4 border-t`]}>
+            <View style={tw`gap-2`}>
+              <View style={tw`flex-row justify-between items-center`}>
+                <Text style={tw`text-md font-bold`}>
+                  {item?.Name || ''}
                 </Text>
               </View>
-            </View>
-          )}
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => toggleItem(index)}
-            style={tw`flex-col py-2 px-4`}
-          >
-            <View style={tw`flex-row justify-between items-start`}>
-              <View style={tw`flex-row items-center flex-1`}>
-                <View
-                  style={[
-                    tw`mr-3 rounded-full p-1`,
-                    themed.globalCard,
-                    { backgroundColor: theme === 'dark' ? '#111827' : '#FFFFFF' }
-                  ]}
-                >
-                  <MaterialCommunityIcons name="account" size={24} color={genderIcon.color} />
-                </View>
 
-                <View style={tw`flex-1 justify-start items-start`}>
-                  <Text style={[tw`text-md font-bold`]}>
-                    {item.PatientName || 'No Name'}
-                  </Text>
-
-                  <Text style={[themed.transactionLabel, tw`mt-0.5 text-xs`]}>
-                    {`${item.UHID || 'N/A'} • ${formatDateOnly(item.BillDate)}`}
-                  </Text>
-
-                  {item.Barcode && (
-                    <View style={tw`mt-1`}>
-                      <Barcode
-                        value={String(item.Barcode).trim()}
-                        format="CODE128"
-                        width={1.2}
-                        maxWidth={Math.min(80, width - 200)}
-                        height={24}
-                        lineColor={theme === 'dark' ? '#3f464e' : '#848994'}
-                        background="transparent"
-                        text={String(item.Barcode).trim()}
-                        textStyle={tw`text-[10px] text-gray-700`}
-                        onError={(e) => console.warn('Barcode render error:', e?.message || e)}
-                        style={{ alignSelf: 'flex-start' }}
-                      />
-                    </View>
-                  )}
-                </View>
-
-                <View
-                  style={[
-                    themed.globalCard,
-                    tw`flex-row justify-between items-center p-3 rounded-full`
-                  ]}
-                >
-                  <Animated.View
-                    style={[
-                      themed.modalCloseButton,
-                      tw`rounded-full p-1.5`,
-                      { transform: [{ rotate: chevronRotation }] }
-                    ]}
-                  >
-                    <Entypo name="chevron-down" size={18} color={themed.chevronColor} />
-                  </Animated.View>
-                </View>
-
-              </View>
-            </View>
-          </TouchableOpacity>
-
-          {isOpen && (
-            <View style={[themed.transactionDivider, themed.globalCard, tw`p-4 border-t`]}>
-              <View style={tw`gap-2`}>
-                <View style={tw`flex-row justify-between items-center`}>
-                  <Text style={tw`text-md font-bold`}>
-                    {item?.Name || ''}
+              <View style={tw`flex-row flex-wrap gap-3 mb-2`}>
+                <View style={tw`flex-row items-center`}>
+                  <MaterialCommunityIcons name="calendar" size={14} color={themed.iconMuted} />
+                  <Text style={[themed.transactionLabel, tw`ml-1 text-xs`]}>
+                    Age: {item.CurrentAge || 'N/A'}
                   </Text>
                 </View>
 
-                <View style={tw`flex-row flex-wrap gap-3 mb-2`}>
-                  <View style={tw`flex-row items-center`}>
-                    <MaterialCommunityIcons name="calendar" size={14} color={themed.iconMuted} />
-                    <Text style={[themed.transactionLabel, tw`ml-1 text-xs`]}>
-                      Age: {item.CurrentAge || 'N/A'}
-                    </Text>
-                  </View>
-
-                  <View style={tw`flex-row items-center`}>
-                    <MaterialCommunityIcons name="phone" size={14} color={themed.iconMuted} />
-                    <Text style={[themed.transactionLabel, tw`ml-1 text-xs`]}>
-                      {item.ContactNumber || 'No Contact'}
-                    </Text>
-                  </View>
+                <View style={tw`flex-row items-center`}>
+                  <MaterialCommunityIcons name="phone" size={14} color={themed.iconMuted} />
+                  <Text style={[themed.transactionLabel, tw`ml-1 text-xs`]}>
+                    {item.ContactNumber || 'No Contact'}
+                  </Text>
                 </View>
-
-                {item.BillDate && (
-                  <View style={tw`flex-row items-center justify-between`}>
-                    <View style={tw`flex-row items-center`}>
-                      <MaterialCommunityIcons name="calendar-clock" size={14} color={themed.iconMuted} />
-                      <Text style={[themed.transactionLabel, tw`ml-2 text-xs`]}>Bill Date</Text>
-                    </View>
-                    <Text style={[themed.transactionLabel, tw`text-xs`]}>{formatBillDateTime(item.CreatedOn)}</Text>
-                  </View>
-                )}
-
-                {item.SampleCollectedOn && (
-                  <View style={tw`flex-row items-center justify-between`}>
-                    <View style={tw`flex-row items-center`}>
-                      <MaterialCommunityIcons name="test-tube" size={14} color={themed.iconMuted} />
-                      <Text style={[themed.transactionLabel, tw`ml-2 text-xs`]}>Sample Collected</Text>
-                    </View>
-                    <Text style={[themed.transactionLabel, tw`text-xs`]}>{item.SampleCollectedOn}</Text>
-                  </View>
-                )}
-
-                {item.ResultDoneOn && (
-                  <View style={tw`flex-row items-center justify-between`}>
-                    <View style={tw`flex-row items-center`}>
-                      <MaterialCommunityIcons name="file-check" size={14} color={themed.iconMuted} />
-                      <Text style={[themed.transactionLabel, tw`ml-2 text-xs`]}>Result Done</Text>
-                    </View>
-                    <Text style={[themed.transactionLabel, tw`text-xs`]}>{item.ResultDoneOn}</Text>
-                  </View>
-                )}
-
-                {item.ReportApprovedOn && (
-                  <View style={tw`flex-row items-center justify-between`}>
-                    <View style={tw`flex-row items-center`}>
-                      <MaterialCommunityIcons name="check-circle" size={14} color={themed.iconMuted} />
-                      <Text style={[themed.transactionLabel, tw`ml-2 text-xs`]}>Report Approved</Text>
-                    </View>
-                    <Text style={[themed.transactionLabel, tw`text-xs`]}>{item.ReportApprovedOn}</Text>
-                  </View>
-                )}
-
-                {item.DispatchedOn && (
-                  <View style={tw`flex-row items-center justify-between`}>
-                    <View style={tw`flex-row items-center`}>
-                      <MaterialCommunityIcons name="truck-fast" size={14} color={themed.iconMuted} />
-                      <Text style={[themed.transactionLabel, tw`ml-2 text-xs`]}>Dispatched</Text>
-                    </View>
-                    <Text style={[themed.transactionLabel, tw`text-xs`]}>{formatDate(item.DispatchedOn)}</Text>
-                  </View>
-                )}
               </View>
 
-              {walletData.balanceMain >= 0 && item?.IsReportApproved === 1 && (
-                <View style={tw`flex-row gap-2 mt-4`}>
-                  <TouchableOpacity
-                    onPress={() =>
-                      handleDownloadReport(
-                        item?.PatientInvestigationId,
-                        item?.PatientName,
-                        item?.ReportTypeId
-                      )
-                    }
-                    style={[themed.card, tw`flex-1 flex-row items-center justify-center py-3 rounded-lg`]}
-                    activeOpacity={0.7}
-                    disabled={downloadingId === item?.PatientInvestigationId}
-                  >
-                    {downloadingId === item?.PatientInvestigationId ? (
-                      <ActivityIndicator size="small" color={themed.chevronColor} />
-                    ) : (
-                      <>
-                        <Feather name="download" size={14} color={themed.chevronColor} />
-                        <Text
-                          numberOfLines={1}
-                          adjustsFontSizeToFit
-                          style={[themed.listItemText, tw`ml-2 text-xs font-medium`]}
-                        >
-                          Download
-                        </Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    onPress={() => {
-                      if (item?.ReportTypeId === 1) {
-                        navigation.navigate('ViewTebularReport', { item, isPrintHeader, loginHeader, mainHeader });
-                      } else {
-                        navigation.navigate('ViewLabReport', {
-                          patientInvestigationId: item?.PatientInvestigationId,
-                          patientName: item?.PatientName,
-                          branchId: payload?.branchId,
-                          item,
-                        });
-                      }
-                    }}
-                    style={[
-                      tw`flex-1 flex-row items-center justify-center py-3 rounded-lg border`,
-                      theme === 'dark'
-                        ? tw`bg-blue-900 border-blue-700`
-                        : tw`bg-blue-50 border-blue-500`
-                    ]}
-                    activeOpacity={0.7}
-                  >
-                    <Feather
-                      name="eye"
-                      size={14}
-                      color={theme === 'dark' ? '#93C5FD' : '#3b82f6'}
-                    />
-                    <Text
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      style={[
-                        tw`ml-2 text-xs font-medium`,
-                        theme === 'dark' ? tw`text-blue-200` : tw`text-blue-600`
-                      ]}
-                    >
-                      View
-                    </Text>
-                  </TouchableOpacity>
+              {item.BillDate && (
+                <View style={tw`flex-row items-center justify-between`}>
+                  <View style={tw`flex-row items-center`}>
+                    <MaterialCommunityIcons name="calendar-clock" size={14} color={themed.iconMuted} />
+                    <Text style={[themed.transactionLabel, tw`ml-2 text-xs`]}>Bill Date</Text>
+                  </View>
+                  <Text style={[themed.transactionLabel, tw`text-xs`]}>{formatBillDateTime(item.CreatedOn)}</Text>
                 </View>
               )}
 
-              {walletData?.balanceMain < 0 && (
-                <View style={tw`bg-amber-50 border-l-4 border-amber-500 rounded-lg px-2 py-1 mt-2 mb-4`}>
+              {item.SampleCollectedOn && (
+                <View style={tw`flex-row items-center justify-between`}>
                   <View style={tw`flex-row items-center`}>
-                    <MaterialCommunityIcons name="alert-circle" size={24} color="#D97706" />
-                    <View style={tw`ml-3 flex-1`}>
-                      <Text style={tw`text-amber-800 font-semibold text-sm`}>
-                        Low Balance Alert
-                      </Text>
-                      <Text style={tw`text-amber-700 text-xs mt-0.5`}>
-                        Please add funds to download report. Current balance:
-                        <Text style={tw`font-bold text-red-500`}> ₹{walletData?.balanceMain}</Text>
-                      </Text>
-                    </View>
+                    <MaterialCommunityIcons name="test-tube" size={14} color={themed.iconMuted} />
+                    <Text style={[themed.transactionLabel, tw`ml-2 text-xs`]}>Sample Collected</Text>
                   </View>
+                  <Text style={[themed.transactionLabel, tw`text-xs`]}>{item.SampleCollectedOn}</Text>
                 </View>
               )}
 
-              <View style={tw`flex-row items-center gap-2 mt-4`}>
+              {item.ResultDoneOn && (
+                <View style={tw`flex-row items-center justify-between`}>
+                  <View style={tw`flex-row items-center`}>
+                    <MaterialCommunityIcons name="file-check" size={14} color={themed.iconMuted} />
+                    <Text style={[themed.transactionLabel, tw`ml-2 text-xs`]}>Result Done</Text>
+                  </View>
+                  <Text style={[themed.transactionLabel, tw`text-xs`]}>{item.ResultDoneOn}</Text>
+                </View>
+              )}
+
+              {item.ReportApprovedOn && (
+                <View style={tw`flex-row items-center justify-between`}>
+                  <View style={tw`flex-row items-center`}>
+                    <MaterialCommunityIcons name="check-circle" size={14} color={themed.iconMuted} />
+                    <Text style={[themed.transactionLabel, tw`ml-2 text-xs`]}>Report Approved</Text>
+                  </View>
+                  <Text style={[themed.transactionLabel, tw`text-xs`]}>{item.ReportApprovedOn}</Text>
+                </View>
+              )}
+
+              {item.DispatchedOn && (
+                <View style={tw`flex-row items-center justify-between`}>
+                  <View style={tw`flex-row items-center`}>
+                    <MaterialCommunityIcons name="truck-fast" size={14} color={themed.iconMuted} />
+                    <Text style={[themed.transactionLabel, tw`ml-2 text-xs`]}>Dispatched</Text>
+                  </View>
+                  <Text style={[themed.transactionLabel, tw`text-xs`]}>{formatDate(item.DispatchedOn)}</Text>
+                </View>
+              )}
+            </View>
+
+            {walletData.balanceMain >= 0 && item?.IsReportApproved === 1 && (
+              <View style={tw`flex-row gap-2 mt-4`}>
                 <TouchableOpacity
-                  onPress={() => handleUpdatetatusPicked(item)}
-                  // disabled={isFlagTrue(item?.SamplePickup)}
-                  style={tw`flex-1 ${item?.SamplePickup ? `bg-green-400` : `bg-yellow-800`}  px-4 py-3 rounded-lg items-center justify-center`} activeOpacity={0.7}>
-                  {pickingSample ? (
-                    <ActivityIndicator color="white" />
+                  onPress={() =>
+                    handleDownloadReport(
+                      item?.PatientInvestigationId,
+                      item?.PatientName,
+                      item?.ReportTypeId
+                    )
+                  }
+                  style={[themed.card, tw`flex-1 flex-row items-center justify-center py-3 rounded-lg`]}
+                  activeOpacity={0.7}
+                  disabled={downloadingId === item?.PatientInvestigationId}
+                >
+                  {downloadingId === item?.PatientInvestigationId ? (
+                    <ActivityIndicator size="small" color={themed.chevronColor} />
                   ) : (
-                    <View style={tw`flex-row items-center gap-1`}>
-                      <Text style={[themed.saveButtonText]}>Sample Picked</Text>
-                      {item?.SamplePickup && <EvilIcons name="check" size={20} color="white" />}
-                    </View>
+                    <>
+                      <Feather name="download" size={14} color={themed.chevronColor} />
+                      <Text
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        style={[themed.listItemText, tw`ml-2 text-xs font-medium`]}
+                      >
+                        Download
+                      </Text>
+                    </>
                   )}
                 </TouchableOpacity>
-                {item?.SamplePickup && <TouchableOpacity
-                  onPress={() => handleUpdatetatusDelivered(item)}
-                  // disabled={isFlagTrue(item?.SampleDelivered)}
-                  style={tw`flex-1 ${item?.SampleDelivered ? `bg-green-500` : `bg-orange-500`}  px-4 py-3 rounded-lg items-center justify-center`} activeOpacity={0.7}>
-                  {deliveringSample ? (
-                    <ActivityIndicator color="white" />
-                  ) : (
-                    <View style={tw`flex-row items-center gap-1`}>
-                      <Text style={[themed.saveButtonText]}>Sample Delivered</Text>
-                      {item?.SampleDelivered && <EvilIcons name="check" size={20} color="white" />}
-                    </View>
-                  )}
 
-                </TouchableOpacity>}
+                <TouchableOpacity
+                  onPress={() => {
+                    if (item?.ReportTypeId === 1) {
+                      navigation.navigate('ViewTebularReport', { item, isPrintHeader, loginHeader, mainHeader });
+                    } else {
+                      navigation.navigate('ViewLabReport', {
+                        patientInvestigationId: item?.PatientInvestigationId,
+                        patientName: item?.PatientName,
+                        branchId: payload?.branchId,
+                        item,
+                      });
+                    }
+                  }}
+                  style={[
+                    tw`flex-1 flex-row items-center justify-center py-3 rounded-lg border`,
+                    theme === 'dark'
+                      ? tw`bg-blue-900 border-blue-700`
+                      : tw`bg-blue-50 border-blue-500`
+                  ]}
+                  activeOpacity={0.7}
+                >
+                  <Feather
+                    name="eye"
+                    size={14}
+                    color={theme === 'dark' ? '#93C5FD' : '#3b82f6'}
+                  />
+                  <Text
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    style={[
+                      tw`ml-2 text-xs font-medium`,
+                      theme === 'dark' ? tw`text-blue-200` : tw`text-blue-600`
+                    ]}
+                  >
+                    View
+                  </Text>
+                </TouchableOpacity>
               </View>
-            </View>
-          )}
-        </View>
+            )}
+
+            {walletData?.balanceMain < 0 && (
+              <View style={tw`bg-amber-50 border-l-4 border-amber-500 rounded-lg px-2 py-1 mt-2 mb-4`}>
+                <View style={tw`flex-row items-center`}>
+                  <MaterialCommunityIcons name="alert-circle" size={24} color="#D97706" />
+                  <View style={tw`ml-3 flex-1`}>
+                    <Text style={tw`text-amber-800 font-semibold text-sm`}>
+                      Low Balance Alert
+                    </Text>
+                    <Text style={tw`text-amber-700 text-xs mt-0.5`}>
+                      Please add funds to download report. Current balance:
+                      <Text style={tw`font-bold text-red-500`}> ₹{walletData?.balanceMain}</Text>
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
       </View>
     );
   };
@@ -1119,7 +995,10 @@ const ListHelpDeskPatient = () => {
                   return (
                     <TouchableOpacity
                       key={status.key}
+                      // onPress={() => setSelectedStatus(status.key)}
+
                       onPress={() => { setSelectedStatus(status.key), closeFilterModal() }}
+
                       activeOpacity={0.85}
                       style={[
                         tw`w-full flex-row items-center rounded-xl px-3 py-3 border`,

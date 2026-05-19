@@ -64,7 +64,7 @@ const RegistrationScreen = () => {
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
   const [medicalHistory, setMedicalHistory] = useState('');
-  const [vistType, setVisitype] = useState("Clinic Visit");
+  const [vistType, setVisitype] = useState("Home Collection");
   const [collectionDateTime, setCollectionDateTime] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -261,7 +261,7 @@ const RegistrationScreen = () => {
     setMedicalHistory('');
 
     // Visit
-    setVisitype('Clinic Visit');
+    setVisitype('Home Collection');
     setCollectionDateTime(null);
 
     // Selection
@@ -361,12 +361,10 @@ const RegistrationScreen = () => {
       showToast('Your Cash Amount is Greater from Net Amount', 'error');
       return false;
     }
-
     if (!firstName) {
       showToast('Enter full name', 'error');
       return false;
     }
-
     if (!ageYears && !ageMonths && !ageDays && !dob) {
       showToast('Enter age or DOB', 'error');
       return false;
@@ -384,25 +382,10 @@ const RegistrationScreen = () => {
     (services || []).forEach((s) => {
       const id = s?.ServiceItemId;
       if (!id) return;
-      const sampleTypes = Array.isArray(s?.SampleTypes)
-        ? s.SampleTypes
-        : Array.isArray(s?.sampleTypes)
-          ? s.sampleTypes
-          : [];
-      const defaultSampleTypeObj =
-        sampleTypes.find(st => Number(st?.sampleTypeId) === Number(s?.SampleTypeId ?? s?.sampleTypeId)) ||
-        sampleTypes[0] ||
-        null;
-      const initialSampleTypeId =
-        s?.SampleTypeId ??
-        s?.sampleTypeId ??
-        defaultSampleTypeObj?.sampleTypeId ??
-        null;
-      const initialSampleType =
-        s?.SampleType ??
-        s?.sampleType ??
-        defaultSampleTypeObj?.sampleType ??
-        '';
+      const sampleTypes = Array.isArray(s?.SampleTypes) ? s.SampleTypes: Array.isArray(s?.sampleTypes) ? s.sampleTypes  : [];
+      const defaultSampleTypeObj = sampleTypes.find(st => Number(st?.sampleTypeId) === Number(s?.SampleTypeId ?? s?.sampleTypeId)) || sampleTypes[0] || null;
+      const initialSampleTypeId = s?.SampleTypeId ?? s?.sampleTypeId ?? defaultSampleTypeObj?.sampleTypeId ?? null;
+      const initialSampleType = s?.SampleType ?? s ?.sampleType ?? defaultSampleTypeObj?.sampleType ??  '';
       const existingRemark = s?.TestRemark ?? s?.testRemark ?? '';
       next[id] = {
         barcode: s?.Barcode ?? s?.barcode ?? '',
@@ -484,8 +467,7 @@ const RegistrationScreen = () => {
         BranchId: finalLoginBranchId,
         LoginBranchId: finalLoginBranchId,
         CorporateId: corporateId,
-
-        Title: selectedTitle || "MR.",
+        Title: selectedTitle || "Mr.",
         FirstName: firstName,
         MiddleName: middleName,
         LastName: lastName,
@@ -606,13 +588,9 @@ const RegistrationScreen = () => {
 
       console.log("FINAL PAYLOAD 👉", JSON.stringify(payload, null, 2));
       // return;
-
       const response = await api.post("Patient/save", payload);
-
       console.log("SUCCESS 👉", response);
-
       const uhid = response?.data?.uhid;
-
       if (uhid) {
         Clipboard.setString(uhid);
         showToast(
@@ -1052,7 +1030,7 @@ const RegistrationScreen = () => {
                 style={[themed.inputBox, themed.inputText]}
               >
                 <Text style={themed.inputText}>
-                  {selectedTitle || "Mr"}
+                  {selectedTitle || "Mr."}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1413,13 +1391,13 @@ const RegistrationScreen = () => {
 
                 <View style={tw`flex-row items-center`}>
 
-                  <TouchableOpacity
+                  {/* <TouchableOpacity
                     style={tw`flex-row items-center mr-5`}
                     onPress={() => setVisitype('Clinic Visit')}
-                  >
+                   >
                     <RadioButton.Android value="Clinic Visit" />
                     <Text style={[themed.inputText]}>Clinic Visit</Text>
-                  </TouchableOpacity>
+                  </TouchableOpacity> */}
 
                   <TouchableOpacity
                     style={tw`flex-row items-center`}
