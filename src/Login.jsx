@@ -419,7 +419,7 @@ const Login = () => {
                             onPress={getBranchList}
                             disabled={loading || branchLoading}
                             activeOpacity={0.85}
-                            style={themed.loginBtn}>
+                            style={[themed.loginBtn]}>
                             {loading || branchLoading ? (
                                 <ActivityIndicator color="#fff" />
                             ) : (

@@ -20,6 +20,8 @@ import { useAuth } from '../../../../Authorization/AuthContext';
 import LinearGradient from 'react-native-linear-gradient';
 import { useTheme } from '../../../../Authorization/ThemeContext';
 import { getThemeStyles } from '../../../utils/themeStyles';
+import AnimateNumber from 'react-native-countup'
+
 
 const { width } = Dimensions.get('window');
 const isTablet = width >= 768;
@@ -45,7 +47,7 @@ const DashboardCollection = forwardRef(({ fromDate, toDate }, ref) => {
 
   const themed = getThemeStyles(themeMode)
 
-  const { fieldBoyId, userId ,loginBranchId} = useAuth();
+  const { fieldBoyId, userId, loginBranchId } = useAuth();
   const finalFieldBoyId = fieldBoyId
 
   // Animation values for floating waves
@@ -124,7 +126,7 @@ const DashboardCollection = forwardRef(({ fromDate, toDate }, ref) => {
           fieldBoyId: id,
           fromDate: finalFromDate,
           toDate: finalToDate,
-          loginBranchIdList:loginBranchId
+          loginBranchIdList: loginBranchId
         },
       });
 
@@ -377,10 +379,29 @@ const DashboardCollection = forwardRef(({ fromDate, toDate }, ref) => {
             <Text style={tw`text-white font-bold text-lg`}>{dashboardData.totalSamples}</Text>
           </View>
           <View style={tw`items-center`}>
-            <Text style={tw`text-indigo-200 text-xs mb-1`}>Collected Amount</Text>
-            <Text style={tw`text-white font-bold text-lg`}>
-              {formatCurrency(dashboardData.totalPaymentCollected || 0)}
+
+            <Text style={tw`text-indigo-200 text-xs mb-1`}>
+              Collected Amount
             </Text>
+            <AnimateNumber
+              style={tw`text-white font-bold text-lg`}
+              timing="easeOut"
+              interval={1} countBy={100}
+              value={dashboardData?.totalPaymentCollected || 0}
+            />
+
+            {/* <CountUp
+              isCounting
+              end={dashboardData?.totalPaymentCollected || 0}
+              duration={3.2}
+              decimalPlaces={2}
+              formatter={(value) => `₹ ${Number(value).toLocaleString('en-IN')}`}
+              textStyle={{
+                color: 'white',
+                fontSize: 22,
+                fontWeight: 'bold',
+              }}
+            /> */}
           </View>
           <View style={tw`items-center`}>
             <Text style={tw`text-indigo-200 text-xs mb-1`}>Samples delivered</Text>

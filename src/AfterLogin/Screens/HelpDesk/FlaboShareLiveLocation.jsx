@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {
   View,
   Text,
@@ -10,15 +10,16 @@ import {
 } from 'react-native';
 
 import Geolocation from '@react-native-community/geolocation';
-import { Map, Camera, GeoJSONSource, Layer } from '@maplibre/maplibre-react-native';
+import {Map, Camera, GeoJSONSource, Layer} from '@maplibre/maplibre-react-native';
 import * as signalR from '@microsoft/signalr';
 import tw from 'twrnc';
 
-import { useAuth } from '../../../../Authorization/AuthContext';
+import {useAuth} from '../../../../Authorization/AuthContext';
+import api, {API_BASE_URL} from '../../../../Authorization/api';
 
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
 const MIN_DISTANCE_METERS = 1;
-const HUB_URL = 'http://192.168.31.237:5021/locationHub';
+const HUB_URL = `${API_BASE_URL.replace('/api', '')}locationHub`;
 
 const FlaboShareLiveLocation = () => {
   const watchIdRef = useRef(null);
@@ -26,8 +27,9 @@ const FlaboShareLiveLocation = () => {
   const lastSentCoordsRef = useRef(null);
   const hubRef = useRef(null);
 
-  const { fieldBoyId } = useAuth();
+  const {fieldBoyId, loginBranchId, fieldBoyData} = useAuth();
 
+  const [branchLocation, setBranchLocation] = useState(null);
   const [currentLocation, setCurrentLocation] = useState(null);
   const [pathCoordinates, setPathCoordinates] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +37,35 @@ const FlaboShareLiveLocation = () => {
   const [apiStatus, setApiStatus] = useState('Waiting...');
   const [tracking, setTracking] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(17);
+
+  const latitude = currentLocation?.latitude || branchLocation?.latitude || 26.8467;
+  const longitude = currentLocation?.longitude || branchLocation?.longitude || 80.9462;
+
+  const moveCamera = (coords, zoom = zoomLevel) => {
+    cameraRef.current?.easeTo({
+      center: [Number(coords.longitude), Number(coords.latitude)],
+      zoom,
+      duration: 700,
+      easing: 'ease',
+    });
+  };
+
+  const zoomIn = () => {
+    const nextZoom = Math.min(zoomLevel + 1, 20);
+    setZoomLevel(nextZoom);
+    moveCamera({latitude, longitude}, nextZoom);
+  };
+
+  const zoomOut = () => {
+    const nextZoom = Math.max(zoomLevel - 1, 3);
+    setZoomLevel(nextZoom);
+    moveCamera({latitude, longitude}, nextZoom);
+  };
+
+  const goToCurrentLocation = () => {
+    moveCamera({latitude, longitude}, zoomLevel);
+  };
 
   const getDistanceInMeters = (lat1, lon1, lat2, lon2) => {
     const R = 6371000;
@@ -45,11 +76,53 @@ const FlaboShareLiveLocation = () => {
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+        Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
 
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  };
+
+  const getBranchLocation = async () => {
+    try {
+      if (!loginBranchId) {
+        setApiStatus('Branch ID not found');
+        return null;
+      }
+
+      setApiStatus('Getting branch location...');
+
+      const response = await api.get(
+        `Location/getBranchLocationById_flabo?branchId=${loginBranchId}`,
+      );
+
+      const json = response?.data;
+
+      if (json?.status === true && Array.isArray(json?.data) && json.data.length > 0) {
+        const branch = json.data[0];
+
+        const coords = {
+          latitude: Number(branch.LatitudeApp),
+          longitude: Number(branch.LongitudeApp),
+        };
+
+        if (Number.isFinite(coords.latitude) && Number.isFinite(coords.longitude)) {
+          setBranchLocation(coords);
+          setCurrentLocation(prev => prev || coords);
+          setPathCoordinates([[coords.longitude, coords.latitude]]);
+          moveCamera(coords, zoomLevel);
+          setApiStatus('Branch location loaded');
+          return coords;
+        }
+      }
+
+      setApiStatus('Branch location not found');
+      return null;
+    } catch (error) {
+      console.log('Branch Location Error:', error?.response?.data || error?.message);
+      setApiStatus('Branch location API failed');
+      return null;
+    }
   };
 
   const requestLocationPermission = async () => {
@@ -80,15 +153,11 @@ const FlaboShareLiveLocation = () => {
         hubRef.current &&
         hubRef.current.state === signalR.HubConnectionState.Connected
       ) {
-        console.log('Socket already connected');
-        console.log('You are live');
         return true;
       }
 
-      console.log('Connecting websocket...');
-
       const connection = new signalR.HubConnectionBuilder()
-        .withUrl(HUB_URL, {
+        .withUrl(String(HUB_URL), {
           skipNegotiation: true,
           transport: signalR.HttpTransportType.WebSockets,
         })
@@ -96,37 +165,27 @@ const FlaboShareLiveLocation = () => {
         .configureLogging(signalR.LogLevel.Information)
         .build();
 
-      connection.onreconnecting(error => {
-        console.log('Socket reconnecting...', error);
+      connection.onreconnecting(() => {
         setSocketConnected(false);
         setApiStatus('Socket reconnecting...');
       });
 
       connection.onreconnected(() => {
-        console.log('Socket reconnected');
-        console.log('You are live');
         setSocketConnected(true);
         setApiStatus('Socket reconnected');
       });
 
-      connection.onclose(error => {
-        console.log('Socket disconnected', error);
+      connection.onclose(() => {
         setSocketConnected(false);
         setApiStatus('Socket disconnected');
       });
 
       await connection.start();
 
-      console.log('==============================');
-      console.log('Socket connected');
-      console.log('You are live');
-      console.log('Hub URL:', HUB_URL);
-      console.log('Connection State:', connection.state);
-      console.log('==============================');
-
       hubRef.current = connection;
       setSocketConnected(true);
       setApiStatus('Socket connected');
+
       return true;
     } catch (error) {
       console.log('Socket connection failed:', error);
@@ -151,11 +210,6 @@ const FlaboShareLiveLocation = () => {
         capturedAt: new Date().toISOString(),
       };
 
-      console.log('================================');
-      console.log('Sending location using WebSocket');
-      console.log(payload);
-      console.log('================================');
-
       let isConnected =
         hubRef.current &&
         hubRef.current.state === signalR.HubConnectionState.Connected;
@@ -171,11 +225,6 @@ const FlaboShareLiveLocation = () => {
 
       const result = await hubRef.current.invoke('SendLocation', payload);
 
-      console.log('================================');
-      console.log('Backend SendLocation Result');
-      console.log(result);
-      console.log('================================');
-
       if (result?.status === true) {
         lastSentCoordsRef.current = coords;
         setLastSentTime(new Date().toLocaleTimeString());
@@ -184,18 +233,17 @@ const FlaboShareLiveLocation = () => {
         setApiStatus(result?.message || 'Location save failed');
       }
     } catch (error) {
-      console.log('================================');
-      console.log('Location Send Error');
-      console.log(error);
-      console.log('================================');
-
+      console.log('Location Send Error:', error);
       setApiStatus(error?.message || 'Location send failed');
     }
   };
 
   const shouldSendLocation = coords => {
     const last = lastSentCoordsRef.current;
-    if (!last) return true;
+
+    if (!last) {
+      return true;
+    }
 
     const distance = getDistanceInMeters(
       last.latitude,
@@ -204,21 +252,7 @@ const FlaboShareLiveLocation = () => {
       coords.longitude,
     );
 
-    console.log('Moved Distance:', distance);
     return distance >= MIN_DISTANCE_METERS;
-  };
-
-  const moveCamera = coords => {
-    try {
-      cameraRef.current?.easeTo({
-        center: [coords.longitude, coords.latitude],
-        zoom: 17,
-        duration: 1000,
-        easing: 'ease',
-      });
-    } catch (e) {
-      console.log('Camera move skipped:', e?.message);
-    }
   };
 
   const addPointToPath = coords => {
@@ -240,17 +274,14 @@ const FlaboShareLiveLocation = () => {
   };
 
   const handleCoordsUpdate = coords => {
-    if (
-      !Number.isFinite(coords.latitude) ||
-      !Number.isFinite(coords.longitude)
-    ) {
+    if (!Number.isFinite(coords.latitude) || !Number.isFinite(coords.longitude)) {
       return;
     }
 
     setCurrentLocation(coords);
     addPointToPath(coords);
     setLoading(false);
-    moveCamera(coords);
+    moveCamera(coords, zoomLevel);
 
     if (shouldSendLocation(coords)) {
       sendLocationToServer(coords);
@@ -270,7 +301,6 @@ const FlaboShareLiveLocation = () => {
           accuracy: Number(position.coords.accuracy || 0),
         };
 
-        console.log('Current Location Success:', coords);
         handleCoordsUpdate(coords);
       },
       error => {
@@ -308,6 +338,9 @@ const FlaboShareLiveLocation = () => {
       return;
     }
 
+    setLoading(true);
+
+    await getBranchLocation();
     await connectSocket();
 
     setTracking(true);
@@ -327,18 +360,11 @@ const FlaboShareLiveLocation = () => {
           accuracy: Number(position.coords.accuracy || 0),
         };
 
-        console.log('Live Watch Location:', coords);
         handleCoordsUpdate(coords);
       },
       error => {
         console.log('Watch Location Error:', error);
-
-        if (error.code === 3) {
-          setApiStatus('GPS timeout. Move outside');
-        } else {
-          setApiStatus(error.message || 'Watch GPS error');
-        }
-
+        setApiStatus(error.code === 3 ? 'GPS timeout. Move outside' : error.message || 'Watch GPS error');
         setLoading(false);
       },
       {
@@ -362,11 +388,17 @@ const FlaboShareLiveLocation = () => {
 
     setTracking(false);
     setApiStatus('Tracking stopped');
-    console.log('Tracking stopped');
   };
 
   const clearPath = () => {
-    setPathCoordinates([]);
+    if (branchLocation) {
+      setPathCoordinates([[branchLocation.longitude, branchLocation.latitude]]);
+      setCurrentLocation(branchLocation);
+      moveCamera(branchLocation, zoomLevel);
+    } else {
+      setPathCoordinates([]);
+    }
+
     lastSentCoordsRef.current = null;
     setLastSentTime('');
     setApiStatus('Path cleared');
@@ -387,23 +419,38 @@ const FlaboShareLiveLocation = () => {
         hubRef.current = null;
       }
     };
-  }, [fieldBoyId]);
+  }, [fieldBoyId, loginBranchId]);
 
-  const latitude = currentLocation?.latitude || 26.8467;
-  const longitude = currentLocation?.longitude || 80.9462;
-
-  const markerGeoJSON = {
+  const currentMarkerGeoJSON = {
     type: 'FeatureCollection',
-    features: [
-      {
-        type: 'Feature',
-        geometry: {
-          type: 'Point',
-          coordinates: [longitude, latitude],
-        },
-        properties: {},
-      },
-    ],
+    features: currentLocation
+      ? [
+          {
+            type: 'Feature',
+            geometry: {
+              type: 'Point',
+              coordinates: [longitude, latitude],
+            },
+            properties: {},
+          },
+        ]
+      : [],
+  };
+
+  const branchMarkerGeoJSON = {
+    type: 'FeatureCollection',
+    features: branchLocation
+      ? [
+          {
+            type: 'Feature',
+            geometry: {
+              type: 'Point',
+              coordinates: [branchLocation.longitude, branchLocation.latitude],
+            },
+            properties: {},
+          },
+        ]
+      : [],
   };
 
   const pathGeoJSON = {
@@ -422,10 +469,15 @@ const FlaboShareLiveLocation = () => {
 
   if (loading) {
     return (
-      <View style={tw`flex-1 justify-center items-center bg-white`}>
+      <View style={tw`flex-1 justify-center items-center bg-white px-5`}>
         <ActivityIndicator size="large" color="#16a34a" />
-        <Text style={tw`mt-3 text-gray-600 font-semibold`}>
-          Getting current location...
+
+        <Text style={tw`mt-3 text-gray-600 font-semibold text-center`}>
+          Getting branch and current location...
+        </Text>
+
+        <Text style={tw`mt-2 text-gray-400 text-xs text-center`}>
+          {apiStatus}
         </Text>
       </View>
     );
@@ -439,7 +491,7 @@ const FlaboShareLiveLocation = () => {
         logo={false}
         attribution={false}
         androidView={Platform.OS === 'android' ? 'texture' : undefined}>
-        <Camera ref={cameraRef} zoom={17} center={[longitude, latitude]} />
+        <Camera ref={cameraRef} zoom={zoomLevel} center={[longitude, latitude]} />
 
         {pathCoordinates.length >= 2 && (
           <GeoJSONSource id="livePathSource" data={pathGeoJSON}>
@@ -455,39 +507,85 @@ const FlaboShareLiveLocation = () => {
           </GeoJSONSource>
         )}
 
-        <GeoJSONSource id="currentLocationSource" data={markerGeoJSON}>
-          <Layer
-            id="currentLocationCircle"
-            type="circle"
-            paint={{
-              'circle-radius': 10,
-              'circle-color': '#2563eb',
-              'circle-stroke-width': 4,
-              'circle-stroke-color': '#ffffff',
-            }}
-          />
-        </GeoJSONSource>
+        {branchLocation && (
+          <GeoJSONSource id="branchLocationSource" data={branchMarkerGeoJSON}>
+            <Layer
+              id="branchLocationCircle"
+              type="circle"
+              paint={{
+                'circle-radius': 9,
+                'circle-color': '#dc2626',
+                'circle-stroke-width': 4,
+                'circle-stroke-color': '#ffffff',
+              }}
+            />
+          </GeoJSONSource>
+        )}
+
+        {currentLocation && (
+          <GeoJSONSource id="currentLocationSource" data={currentMarkerGeoJSON}>
+            <Layer
+              id="currentLocationCircle"
+              type="circle"
+              paint={{
+                'circle-radius': 10,
+                'circle-color': '#2563eb',
+                'circle-stroke-width': 4,
+                'circle-stroke-color': '#ffffff',
+              }}
+            />
+          </GeoJSONSource>
+        )}
       </Map>
 
-      <View style={tw`absolute bottom-5 left-4 right-4 bg-white rounded-2xl p-4 shadow-lg`}>
+      {/* Zoom Buttons */}
+      <View style={tw`absolute right-4 top-28`}>
+        <TouchableOpacity
+          onPress={zoomIn}
+          style={tw`h-11 w-11 bg-white rounded-full items-center justify-center mb-3 shadow-lg`}>
+          <Text style={tw`text-black text-2xl font-bold`}>+</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={zoomOut}
+          style={tw`h-11 w-11 bg-white rounded-full items-center justify-center mb-3 shadow-lg`}>
+          <Text style={tw`text-black text-3xl font-bold`}>−</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={goToCurrentLocation}
+          style={tw`h-11 w-11 bg-blue-600 rounded-full items-center justify-center shadow-lg`}>
+          <Text style={tw`text-white text-lg font-bold`}>◎</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={tw`absolute bottom-5 left-4 right-4 bg-gray-300/50 border rounded-2xl p-4`}>
         <Text style={tw`text-green-700 text-lg font-bold text-center`}>
           Flabo Live Location
         </Text>
 
-        <Text style={tw`text-gray-600 text-center mt-2`}>
-          Socket: {socketConnected ? 'Connected ✅' : 'Disconnected ❌'}
+        <Text style={tw`${socketConnected ? 'text-green-600' : 'text-gray-600'} text-center mt-2`}>
+          Location: {socketConnected ? 'Connected' : 'Disconnected ❌'}
         </Text>
 
         <Text style={tw`text-gray-500 text-center mt-2 text-xs`}>
-          Field Boy ID: {fieldBoyId || 'Not found'}
+          Field Boy ID: {fieldBoyId || 'Not found'} {fieldBoyData?.fieldBoyName || ''}
         </Text>
 
         <Text style={tw`text-gray-500 text-center mt-1 text-xs`}>
-          Latitude: {latitude}
+          Branch ID: {loginBranchId || 'Not found'}
         </Text>
 
         <Text style={tw`text-gray-500 text-center mt-1 text-xs`}>
-          Longitude: {longitude}
+          Current Lat: {latitude}
+        </Text>
+
+        <Text style={tw`text-gray-500 text-center mt-1 text-xs`}>
+          Current Lng: {longitude}
+        </Text>
+
+        <Text style={tw`text-gray-500 text-center mt-1 text-xs`}>
+          Zoom: {zoomLevel}
         </Text>
 
         <Text style={tw`text-gray-500 text-center mt-1 text-xs`}>
@@ -505,8 +603,7 @@ const FlaboShareLiveLocation = () => {
         <View style={tw`flex-row mt-4`}>
           <TouchableOpacity
             onPress={tracking ? stopWatchLocation : startWatchLocation}
-            style={tw`flex-1 ${tracking ? 'bg-red-500' : 'bg-green-600'
-              } py-3 rounded-xl mr-2`}>
+            style={tw`flex-1 ${tracking ? 'bg-red-500' : 'bg-green-600'} py-3 rounded-xl mr-2`}>
             <Text style={tw`text-white text-center font-bold`}>
               {tracking ? 'Stop Tracking' : 'Start Tracking'}
             </Text>
