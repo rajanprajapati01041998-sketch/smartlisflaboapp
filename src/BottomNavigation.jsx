@@ -129,7 +129,7 @@ export default function BottomTabNavigation() {
           let iconName;
 
           if (route.name === 'Dashboard') iconName = 'view-dashboard';
-          else if (route.name === 'Sample') iconName = 'blood-bag'; // ✅ UPDATE THIS
+          else if (route.name === 'HelpDesk') iconName = 'blood-bag'; // ✅ UPDATE THIS
           else if (route.name === 'Registration') iconName = 'account-plus'; // ✅ ADD THIS
 
           return (
@@ -167,7 +167,7 @@ export default function BottomTabNavigation() {
       />
 
       <Tab.Screen
-        name="Sample"
+        name="HelpDesk"
         component={HelpDeskStack}
       />
     </Tab.Navigator>

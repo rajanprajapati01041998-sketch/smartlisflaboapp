@@ -1186,9 +1186,8 @@ const RegistrationScreen = () => {
 
           <View style={tw`mt-2`}>
             <View style={tw`flex-row items-end `}>
-              <View style={tw`flex-1 mr-2`}>
+              <View style={tw`flex-1 `}>
                 <Text style={themed.inputLabel}>Referred Doctor</Text>
-
                 <TouchableOpacity
                   onPress={() => setReferDoctorModal(true)}
                   style={[
@@ -1207,7 +1206,7 @@ const RegistrationScreen = () => {
                 </TouchableOpacity>
               </View>
 
-              <TouchableOpacity
+              {/* <TouchableOpacity
                 onPress={() => setAddReferDoctorModal(true)}
                 style={[
                   themed.addButton,
@@ -1215,7 +1214,7 @@ const RegistrationScreen = () => {
                 ]}
               >
                 <Text style={styles.buttonTextAdd}>+</Text>
-              </TouchableOpacity>
+              </TouchableOpacity> */}
             </View>
 
             {/* <View style={tw`w-full`}>

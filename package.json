@@ -36,6 +36,7 @@
     "react-native-barcode-svg": "^0.0.15",
     "react-native-blob-util": "^0.24.7",
     "react-native-camera-kit": "^17.0.1",
+    "react-native-countup": "^0.0.2",
     "react-native-date-picker": "^5.0.13",
     "react-native-device-info": "^15.0.2",
     "react-native-dropdown-select-list": "^2.0.5",
