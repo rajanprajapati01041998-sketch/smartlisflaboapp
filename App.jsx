@@ -40,7 +40,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsStartupSplashVisible(false), 1000);
+    const timer = setTimeout(() => setIsStartupSplashVisible(false), 3000);
     return () => clearTimeout(timer);
   }, []);
 
