@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, memo } from 'react';
 import {
     View,
     Text,
@@ -11,12 +11,14 @@ import {
     TouchableWithoutFeedback,
     SafeAreaView,
     StatusBar,
+    Alert,
 } from 'react-native';
 
 import tw from 'twrnc';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Feather from 'react-native-vector-icons/Feather';
 import { useNavigation } from '@react-navigation/native';
+import { Swipeable } from 'react-native-gesture-handler';
 
 import { useAuth } from '../../../Authorization/AuthContext';
 import api from '../../../Authorization/api';
@@ -24,6 +26,111 @@ import { useToast } from '../../../Authorization/ToastContext';
 import { useTheme } from '../../../Authorization/ThemeContext';
 import { getThemeStyles } from '../../utils/themeStyles';
 import FilterDate from '../../AfterLogin/Screens/FilterDate';
+import {
+    startLiveLocationSession,
+    stopLiveLocationSession,
+} from '../../utils/backgroundLocationPrefs';
+
+const SampleTrackingSearchHeader = memo(function SampleTrackingSearchHeader({
+    themed,
+    uhid,
+    patientName,
+    onUhidChange,
+    onPatientNameChange,
+    onSearch,
+    onClear,
+    onOpenFilter,
+    loading,
+    fromDate,
+    toDate,
+    sampleCount,
+}) {
+    return (
+        <View style={tw`px-4 pt-4 pb-2 bg-white dark:bg-gray-900`}>
+            <View style={tw`flex-row justify-between items-center mb-4`}>
+                <Text style={[themed.headerTitle, tw`text-lg font-bold`]}>
+                    Sample Tracking
+                </Text>
+
+                <TouchableOpacity
+                    onPress={onOpenFilter}
+                    style={[
+                        tw`px-4 py-2 rounded-xl flex-row items-center`,
+                        themed.filterButton,
+                    ]}
+                >
+                    <Feather
+                        name="calendar"
+                        size={18}
+                        color={themed.filterButtonIcon}
+                    />
+                    <Text style={[themed.filterButtonText, tw`ml-2`]}>
+                        Filter
+                    </Text>
+                </TouchableOpacity>
+            </View>
+
+            <View style={tw`flex-row gap-3 mb-3`}>
+                <TextInput
+                    value={uhid}
+                    onChangeText={onUhidChange}
+                    placeholder="Search by UHID"
+                    placeholderTextColor={themed.inputPlaceholder}
+                    style={[themed.inputBox, themed.inputText, tw`flex-1`]}
+                    autoCorrect={false}
+                    autoCapitalize="none"
+                    returnKeyType="next"
+                    blurOnSubmit={false}
+                />
+
+                <TextInput
+                    value={patientName}
+                    onChangeText={onPatientNameChange}
+                    placeholder="Patient Name"
+                    placeholderTextColor={themed.inputPlaceholder}
+                    style={[themed.inputBox, themed.inputText, tw`flex-1`]}
+                    autoCorrect={false}
+                    returnKeyType="search"
+                    onSubmitEditing={onSearch}
+                />
+            </View>
+
+            <View style={tw`flex-row gap-3`}>
+                <TouchableOpacity
+                    onPress={onSearch}
+                    disabled={loading}
+                    style={tw`flex-1 bg-blue-600 py-3 rounded-xl flex-row justify-center items-center`}
+                >
+                    <Feather name="search" size={18} color="#fff" />
+                    <Text style={tw`text-white font-semibold ml-2`}>
+                        {loading ? 'Searching...' : 'Search'}
+                    </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    onPress={onClear}
+                    style={tw`bg-gray-300 dark:bg-gray-700 px-6 py-3 rounded-xl`}
+                >
+                    <Text style={tw`font-semibold text-gray-700 dark:text-gray-300`}>
+                        Clear
+                    </Text>
+                </TouchableOpacity>
+            </View>
+
+            <View style={tw`flex-row justify-between items-center mt-3`}>
+                <Text style={tw`text-gray-500 dark:text-gray-400 text-xs`}>
+                    📅 {fromDate} → {toDate}
+                </Text>
+
+                <View style={tw`bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded-full`}>
+                    <Text style={tw`text-blue-700 dark:text-blue-300 text-xs font-semibold`}>
+                        {sampleCount} samples
+                    </Text>
+                </View>
+            </View>
+        </View>
+    );
+});
 
 const UpdateSampleStatus = () => {
     const flatListRef = useRef(null);
@@ -39,6 +146,8 @@ const UpdateSampleStatus = () => {
     const [sampleList, setSampleList] = useState([]);
     const [uhid, setUhid] = useState('');
     const [patientName, setPatientName] = useState('');
+    const [appliedUhid, setAppliedUhid] = useState('');
+    const [appliedPatientName, setAppliedPatientName] = useState('');
     const [filterVisible, setFilterVisible] = useState(false);
     const [menuVisible, setMenuVisible] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
@@ -74,17 +183,26 @@ const UpdateSampleStatus = () => {
             .replace('pm', 'PM');
     }, []);
 
-    const getSampleStatus = useCallback(async () => {
+    const getSampleStatus = useCallback(async (searchOverrides = {}) => {
         try {
             setLoading(true);
+
+            const uhidValue =
+                searchOverrides.uhid !== undefined
+                    ? searchOverrides.uhid
+                    : appliedUhid;
+            const patientNameValue =
+                searchOverrides.patientName !== undefined
+                    ? searchOverrides.patientName
+                    : appliedPatientName;
 
             const payload = {
                 fieldBoyId: Number(fieldBoyId),
                 loginBranchIdList: String(loginBranchId),
                 fromDate,
                 toDate,
-                uhid: uhid?.trim() || null,
-                patientName: patientName?.trim() || null,
+                uhid: uhidValue?.trim() || null,
+                patientName: patientNameValue?.trim() || null,
             };
 
             const response = await api.post(
@@ -110,7 +228,26 @@ const UpdateSampleStatus = () => {
             setLoading(false);
             setRefreshing(false);
         }
-    }, [fieldBoyId, loginBranchId, fromDate, toDate, uhid, patientName, showToast]);
+    }, [
+        fieldBoyId,
+        loginBranchId,
+        fromDate,
+        toDate,
+        appliedUhid,
+        appliedPatientName,
+        showToast,
+    ]);
+
+    const handleSearch = useCallback(() => {
+        const trimmedUhid = uhid.trim();
+        const trimmedPatientName = patientName.trim();
+        setAppliedUhid(trimmedUhid);
+        setAppliedPatientName(trimmedPatientName);
+        getSampleStatus({
+            uhid: trimmedUhid,
+            patientName: trimmedPatientName,
+        });
+    }, [uhid, patientName, getSampleStatus]);
 
     const samplePickedApi = useCallback(async () => {
         if (!selectedItem?.Id) {
@@ -128,6 +265,7 @@ const UpdateSampleStatus = () => {
             setMenuVisible(false);
             setSelectedItem(null);
             await getSampleStatus();
+            await startLiveLocationSession(selectedItem.Id);
             navigation.navigate('FlaboShareLiveLocation', {
                 id: selectedItem.Id,
             });
@@ -139,8 +277,10 @@ const UpdateSampleStatus = () => {
         }
     }, [selectedItem, showToast, getSampleStatus, navigation]);
 
-    const sampleDeliveredApi = useCallback(async () => {
-        if (!selectedItem?.Id) {
+    const sampleDeliveredApi = useCallback(async (itemOverride) => {
+        const target = itemOverride || selectedItem;
+
+        if (!target?.Id) {
             showToast('Invalid sample', 'error');
             return;
         }
@@ -149,7 +289,7 @@ const UpdateSampleStatus = () => {
             setUpdating(true);
 
             const payload = {
-                id: selectedItem.Id,
+                id: target.Id,
                 sampleDelivered: true,
             };
 
@@ -158,6 +298,7 @@ const UpdateSampleStatus = () => {
             showToast('Sample delivered successfully', 'success');
             setMenuVisible(false);
             setSelectedItem(null);
+            await stopLiveLocationSession();
 
             await getSampleStatus();
         } catch (error) {
@@ -176,11 +317,13 @@ const UpdateSampleStatus = () => {
     const clearSearch = useCallback(() => {
         setUhid('');
         setPatientName('');
+        setAppliedUhid('');
+        setAppliedPatientName('');
         setFromDate(getTodayDate());
         setToDate(getTodayDate());
 
         setTimeout(() => {
-            getSampleStatus();
+            getSampleStatus({ uhid: '', patientName: '' });
         }, 100);
     }, [getSampleStatus, getTodayDate]);
 
@@ -203,9 +346,11 @@ const UpdateSampleStatus = () => {
 
     useEffect(() => {
         if (loginBranchId && fieldBoyId) {
-            getSampleStatus();
+            getSampleStatus({ uhid: '', patientName: '' });
         }
-    }, [loginBranchId, fieldBoyId, getSampleStatus]);
+        // Only load on mount / auth change — not when typing UHID or patient name
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [loginBranchId, fieldBoyId]);
 
     const getStatusStyle = useCallback((status) => {
         const styles = {
@@ -229,89 +374,43 @@ const UpdateSampleStatus = () => {
         return styles[status] || styles.default;
     }, []);
 
-    const SearchHeader = () => (
-        <View style={tw`px-4 pt-4 pb-2 bg-white dark:bg-gray-900`}>
-            <View style={tw`flex-row justify-between items-center mb-4`}>
-                <Text style={[themed.headerTitle, tw`text-lg font-bold`]}>
-                    Sample Tracking
-                </Text>
-
-                <TouchableOpacity
-                    onPress={() => setFilterVisible(true)}
-                    style={[
-                        tw`px-4 py-2 rounded-xl flex-row items-center`,
-                        themed.filterButton,
-                    ]}
-                >
-                    <Feather
-                        name="calendar"
-                        size={18}
-                        color={themed.filterButtonIcon}
-                    />
-                    <Text style={[themed.filterButtonText, tw`ml-2`]}>
-                        Filter
-                    </Text>
-                </TouchableOpacity>
-            </View>
-
-            <View style={tw`flex-row gap-3 mb-3`}>
-                <TextInput
-                    value={uhid}
-                    onChangeText={setUhid}
-                    placeholder="Search by UHID"
-                    placeholderTextColor={themed.inputPlaceholder}
-                    style={[themed.inputBox, themed.inputText, tw`flex-1`]}
-                />
-
-                <TextInput
-                    value={patientName}
-                    onChangeText={setPatientName}
-                    placeholder="Patient Name"
-                    placeholderTextColor={themed.inputPlaceholder}
-                    style={[themed.inputBox, themed.inputText, tw`flex-1`]}
-                />
-            </View>
-
-            <View style={tw`flex-row gap-3`}>
-                <TouchableOpacity
-                    onPress={getSampleStatus}
-                    disabled={loading}
-                    style={tw`flex-1 bg-blue-600 py-3 rounded-xl flex-row justify-center items-center`}
-                >
-                    <Feather name="search" size={18} color="#fff" />
-                    <Text style={tw`text-white font-semibold ml-2`}>
-                        {loading ? 'Searching...' : 'Search'}
-                    </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    onPress={clearSearch}
-                    style={tw`bg-gray-300 dark:bg-gray-700 px-6 py-3 rounded-xl`}
-                >
-                    <Text style={tw`font-semibold text-gray-700 dark:text-gray-300`}>
-                        Clear
-                    </Text>
-                </TouchableOpacity>
-            </View>
-
-            <View style={tw`flex-row justify-between items-center mt-3`}>
-                <Text style={tw`text-gray-500 dark:text-gray-400 text-xs`}>
-                    📅 {fromDate} → {toDate}
-                </Text>
-
-                <View style={tw`bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded-full`}>
-                    <Text style={tw`text-blue-700 dark:text-blue-300 text-xs font-semibold`}>
-                        {sampleList.length} samples
-                    </Text>
-                </View>
-            </View>
-        </View>
-    );
-
     const SampleCard = ({ item }) => {
         const status = getStatusStyle(item?.SampleStatus);
+        const canSwipeDeliver =
+            item?.SamplePickup === true && item?.SampleDelivered === false;
 
-        return (
+        const renderSwipeLeftActions = () => {
+            if (!canSwipeDeliver) return null;
+
+            return (
+                <View style={tw`justify-center ml-4`}>
+                    <View style={tw`bg-emerald-600 px-4 py-3 rounded-xl`}>
+                        <Text style={tw`text-white font-bold`}>Slide → Delivered</Text>
+                    </View>
+                </View>
+            );
+        };
+
+        const onSwipeOpen = () => {
+            if (!canSwipeDeliver || updating) {
+                return;
+            }
+
+            Alert.alert(
+                'Mark Delivered?',
+                'Do you want to mark this sample as delivered?',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'Delivered',
+                        style: 'destructive',
+                        onPress: () => sampleDeliveredApi(item),
+                    },
+                ],
+            );
+        };
+
+        const CardBody = (
             <TouchableOpacity
                 activeOpacity={0.9}
                 onPress={() => openMenu(item)}
@@ -326,7 +425,7 @@ const UpdateSampleStatus = () => {
             >
                 <View style={tw`flex-row justify-between items-start mb-3`}>
                     <View style={tw`flex-1`}>
-                        <Text style={[themed.inputText, tw`text-lg font-bold`]}>
+                        <Text style={[themed.inputText, tw`text-md font-bold`]}>
                             {item?.PatientName || 'N/A'}
                         </Text>
 
@@ -417,6 +516,20 @@ const UpdateSampleStatus = () => {
                     </View>
                 )}
             </TouchableOpacity>
+        );
+
+        if (!canSwipeDeliver) {
+            return CardBody;
+        }
+
+        return (
+            <Swipeable
+                renderLeftActions={renderSwipeLeftActions}
+                leftThreshold={90}
+                onSwipeableOpen={onSwipeOpen}
+            >
+                {CardBody}
+            </Swipeable>
         );
     };
 
@@ -524,12 +637,29 @@ const UpdateSampleStatus = () => {
         <SafeAreaView style={[themed.childScreen, tw`flex-1`]}>
             <StatusBar barStyle={theme === 'dark' ? 'light-content' : 'dark-content'} />
 
+            <SampleTrackingSearchHeader
+                themed={themed}
+                uhid={uhid}
+                patientName={patientName}
+                onUhidChange={setUhid}
+                onPatientNameChange={setPatientName}
+                onSearch={handleSearch}
+                onClear={clearSearch}
+                onOpenFilter={() => setFilterVisible(true)}
+                loading={loading}
+                fromDate={fromDate}
+                toDate={toDate}
+                sampleCount={sampleList.length}
+            />
+
             <FlatList
                 ref={flatListRef}
+                style={tw`flex-1`}
                 data={sampleList}
                 keyExtractor={(item, index) => String(item?.Id || index)}
-                ListHeaderComponent={SearchHeader}
                 renderItem={({ item }) => <SampleCard item={item} />}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
                 }

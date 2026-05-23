@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
+  Switch,
 } from 'react-native';
 import {
   createDrawerNavigator,
@@ -16,27 +17,42 @@ import tw from 'twrnc';
 import { useTheme } from '../Authorization/ThemeContext';
 import { useAuth } from '../Authorization/AuthContext';
 import BottomTabNavigation from './BottomNavigation';
+import {
+  getBackgroundLocationEnabled,
+  setBackgroundLocationEnabled,
+} from './utils/backgroundLocationPrefs';
 const Drawer = createDrawerNavigator();
 
 function DashboardDrawerContent(props) {
   const { colors, theme } = useTheme();
-  const { logout, userData, fieldBoyData,logoutLoading } = useAuth();
+  const { logout, fieldBoyData,logoutLoading } = useAuth();
   const [search, setSearch] = useState('');
+  const [bgLocationEnabled, setBgLocationEnabled] = useState(false);
 
-  const goTo = screenName => {
+  useEffect(() => {
+    let mounted = true;
+    getBackgroundLocationEnabled()
+      .then(v => mounted && setBgLocationEnabled(v))
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const goTo = useCallback((screenName) => {
     props.navigation.navigate('MainTabs', {
       screen: 'Dashboard',
       params: { screen: screenName },
     });
     props.navigation.closeDrawer();
-  };
+  }, [props.navigation]);
 
-  const goToTab = tabName => {
+  const goToTab = useCallback((tabName) => {
     props.navigation.navigate('MainTabs', { screen: tabName });
     props.navigation.closeDrawer();
-  };
+  }, [props.navigation]);
 
-  const menuItems = [
+  const menuItems = useMemo(() => ([
     {
       label: 'New Registration',
       subTitle: 'Register new patient',
@@ -61,14 +77,6 @@ function DashboardDrawerContent(props) {
       color: '#2563eb',
       onPress: () => goTo('PatientInformation'),
     },
-    // {
-    //   label: 'Payment',
-    //   subTitle: 'Wallet, receipts and payments',
-    //   iconType: 'mci',
-    //   icon: 'credit-card-outline',
-    //   color: '#16a34a',
-    //   onPress: () => goTo('DashboardPayment'),
-    // },
     {
       label: 'Login History',
       subTitle: 'View user login activity',
@@ -77,14 +85,6 @@ function DashboardDrawerContent(props) {
       color: '#9333ea',
       onPress: () => goTo('UserLoginHistory'),
     },
-    // {
-    //   label: 'Help Desk',
-    //   subTitle: 'View registered patient',
-    //   iconType: 'mi',
-    //   icon: 'history',
-    //   color: '#ea33a1',
-    //   onPress: () => goToTab('HelpDesk'),
-    // },
     {
       label: 'Track Location',
       subTitle: 'View Live laction',
@@ -93,7 +93,7 @@ function DashboardDrawerContent(props) {
       color: '#3376ea',
       onPress: () => goTo('Track Location')
     },
-  ];
+  ]), [goTo]);
 
   const filteredItems = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -105,7 +105,7 @@ function DashboardDrawerContent(props) {
         item.label.toLowerCase().includes(q) ||
         item.subTitle.toLowerCase().includes(q),
     );
-  }, [search]);
+  }, [search, menuItems]);
 
   const renderIcon = item => {
     if (item.iconType === 'mi') {
@@ -212,6 +212,50 @@ function DashboardDrawerContent(props) {
           >
             Navigation
           </Text>
+
+          <View
+            style={[
+              tw`mb-3 p-3 rounded-2xl flex-row items-center border`,
+              {
+                backgroundColor:
+                  theme === 'dark' ? 'rgba(255,255,255,0.04)' : '#ffffff',
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <View
+              style={[
+                tw`w-11 h-11 rounded-xl items-center justify-center`,
+                { backgroundColor: 'rgba(22,163,74,0.10)' },
+              ]}
+            >
+              <MaterialCommunityIcons name="map-marker-radius" size={22} color="#16a34a" />
+            </View>
+
+            <View style={tw`ml-3 flex-1`}>
+              <Text style={[tw`text-sm font-semibold`, { color: colors.text }]}>
+                Background Location
+              </Text>
+              <Text
+                numberOfLines={1}
+                style={[tw`text-xs mt-0.5`, { color: colors.text, opacity: 0.55 }]}
+              >
+                Keep live tracking enabled
+              </Text>
+            </View>
+
+            <Switch
+              value={bgLocationEnabled}
+              onValueChange={async next => {
+                setBgLocationEnabled(next);
+                try {
+                  await setBackgroundLocationEnabled(next);
+                } catch {}
+              }}
+              trackColor={{ false: '#d1d5db', true: 'rgba(22,163,74,0.35)' }}
+              thumbColor={bgLocationEnabled ? '#16a34a' : '#f4f4f5'}
+            />
+          </View>
 
           {filteredItems.length > 0 ? (
             filteredItems.map((item, index) => (

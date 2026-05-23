@@ -21,6 +21,7 @@ import DashboardCollection from './DashboardCollection';
 import {useDash} from '../../../../Authorization/DashContext';
 import {useTheme} from '../../../../Authorization/ThemeContext';
 import {getThemeStyles} from '../../../utils/themeStyles';
+import {getLiveLocationSession} from '../../../utils/backgroundLocationPrefs';
 
 const LabDashboard = () => {
   const {
@@ -47,6 +48,7 @@ const LabDashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectAll, setSelectAll] = useState(false);
   const [selectedBranches, setSelectedBranches] = useState([]);
+  const [liveSession, setLiveSession] = useState(null);
 
   const getTodayDate = () => {
     const today = new Date();
@@ -66,7 +68,23 @@ const LabDashboard = () => {
       }
 
       dashboardWallet(loginBranchId);
-    }, [fromDate, toDate, loginBranchId]),
+
+      let mounted = true;
+      const loadSession = async () => {
+        try {
+          const session = await getLiveLocationSession();
+          if (mounted) setLiveSession(session);
+        } catch {}
+      };
+
+      loadSession();
+      const interval = setInterval(loadSession, 1200);
+
+      return () => {
+        mounted = false;
+        clearInterval(interval);
+      };
+    }, [fromDate, toDate, loginBranchId, dashboardWallet]),
   );
 
   const formatDateToAPI = date => {
@@ -200,6 +218,26 @@ const LabDashboard = () => {
           </View>
         </View>
       </View>
+
+      {liveSession?.active && liveSession?.sampleId != null ? (
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() =>
+            navigation.navigate('FlaboShareLiveLocation', {id: liveSession.sampleId})
+          }
+          style={tw`mx-4 mt-3 mb-2 bg-emerald-600 rounded-2xl px-4 py-3 flex-row items-center justify-between`}
+        >
+          <View>
+            <Text style={tw`text-white font-bold text-base`}>Live Location is ON</Text>
+            <Text style={tw`text-white/90 text-xs mt-0.5`}>
+              Sample ID: {String(liveSession.sampleId)}
+            </Text>
+          </View>
+          <View style={tw`bg-white/20 px-3 py-2 rounded-xl`}>
+            <Text style={tw`text-white font-bold`}>Open</Text>
+          </View>
+        </TouchableOpacity>
+      ) : null}
 
       {selectedBranches.length > 0 && (
         <View style={tw`px-2 mb-2 mt-1`}>

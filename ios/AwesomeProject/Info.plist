@@ -46,7 +46,9 @@
 		</dict>
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string></string>
+	<string>We use your location to show and share live tracking during sample pickup and delivery.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>We use your location to keep live tracking running during sample pickup and delivery, even when the app is in the background.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Camera access is required to scan barcodes.</string>
 	<key>RCTNewArchEnabled</key>

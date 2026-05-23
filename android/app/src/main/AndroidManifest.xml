@@ -42,7 +42,7 @@
     <!-- Required by react-native-maps (Google Maps on Android). -->
     <meta-data
       android:name="com.google.android.geo.API_KEY"
-      android:value="AIzaSyB_v7A9AiFSifn65xn4WpnEMQiJ6_THQm4"
+      android:value="@string/google_maps_api_key"
     />
 
     <activity

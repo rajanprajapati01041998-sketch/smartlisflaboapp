@@ -190,6 +190,7 @@ export default function DashboardStack() {
         component={LabDashboard}
         options={({ navigation }) => ({
           headerTitle: 'Dashboard',
+          headerBackVisible: false,
           headerRight: () => <HeaderRightMenu navigation={navigation} />,
           headerLeft: () => (
             <TouchableOpacity

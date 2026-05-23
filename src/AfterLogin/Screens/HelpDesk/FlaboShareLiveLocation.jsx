@@ -7,7 +7,16 @@ import {
   Alert,
   ActivityIndicator,
   TouchableOpacity,
+  Dimensions,
 } from 'react-native';
+import {useNavigation, useRoute} from '@react-navigation/native';
+import {Gesture, GestureDetector} from 'react-native-gesture-handler';
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
 import Geolocation from '@react-native-community/geolocation';
 import {Map, Camera, GeoJSONSource, Layer} from '@maplibre/maplibre-react-native';
@@ -16,12 +25,128 @@ import tw from 'twrnc';
 
 import {useAuth} from '../../../../Authorization/AuthContext';
 import api, {API_BASE_URL} from '../../../../Authorization/api';
+import {
+  getBackgroundLocationEnabled,
+  getLiveLocationSession,
+  startLiveLocationSession,
+  stopLiveLocationSession,
+} from '../../../utils/backgroundLocationPrefs';
 
-const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
+const MAP_STYLE_PRIMARY = 'https://tiles.openfreemap.org/styles/liberty';
+const MAP_STYLE_FALLBACK = 'https://demotiles.maplibre.org/style.json';
 const MIN_DISTANCE_METERS = 1;
 const HUB_URL = `${API_BASE_URL.replace('/api', '')}locationHub`;
 
+const {width: SCREEN_WIDTH} = Dimensions.get('window');
+
+function SlideToDeliver({disabled, onConfirm}) {
+  const SLIDER_HEIGHT = 54;
+  const KNOB_SIZE = 46;
+  const H_PADDING = 6;
+  const sliderWidth = Math.min(SCREEN_WIDTH - 32, 420);
+  const maxTranslate = sliderWidth - KNOB_SIZE - H_PADDING * 2;
+  const translateX = useSharedValue(0);
+
+  const reset = () => {
+    translateX.value = withTiming(0, {duration: 220});
+  };
+
+  const openConfirm = () => {
+    Alert.alert(
+      'Complete Delivery?',
+      'Slide will mark sample as Delivered.',
+      [
+        {text: 'Cancel', style: 'cancel', onPress: reset},
+        {
+          text: 'Delivered',
+          onPress: () => {
+            reset();
+            onConfirm?.();
+          },
+        },
+      ],
+    );
+  };
+
+  const pan = Gesture.Pan()
+    .enabled(!disabled)
+    .onUpdate(e => {
+      const next = Math.max(0, Math.min(maxTranslate, e.translationX));
+      translateX.value = next;
+    })
+    .onEnd(() => {
+      const threshold = maxTranslate * 0.82;
+      if (translateX.value >= threshold) {
+        translateX.value = withTiming(maxTranslate, {duration: 160});
+        runOnJS(openConfirm)();
+      } else {
+        translateX.value = withTiming(0, {duration: 200});
+      }
+    });
+
+  const knobStyle = useAnimatedStyle(() => ({
+    transform: [{translateX: translateX.value}],
+  }));
+
+  const fillStyle = useAnimatedStyle(() => ({
+    width: translateX.value + KNOB_SIZE + H_PADDING,
+  }));
+
+  return (
+    <View style={tw`items-center  `}>
+      <View
+        style={[
+          tw`overflow-hidden rounded-lg border`,
+          {
+            width: sliderWidth,
+            height: SLIDER_HEIGHT,
+            borderColor: disabled ? 'rgba(107,114,128,0.35)' : 'rgba(16,185,129,0.35)',
+            backgroundColor: disabled ? 'rgba(107,114,128,0.10)' : 'rgba(16,185,129,0.12)',
+          },
+        ]}
+      >
+        <Animated.View
+          style={[
+            tw`absolute left-0 top-0 bottom-0 rounded-lg`,
+            {backgroundColor: disabled ? 'rgba(107,114,128,0.18)' : 'rgba(16,185,129,0.45)'},
+            fillStyle,
+          ]}
+        />
+
+        <View style={tw`flex-1 items-center justify-center`}>
+          <Text
+            style={tw.style(
+              `font-bold tracking-wide`,
+              disabled ? 'text-gray-500' : 'text-emerald-900',
+            )}
+          >
+            {disabled ? 'Delivered Locked' : 'Slide to complete delivery'}
+          </Text>
+        </View>
+
+        <GestureDetector gesture={pan}>
+          <Animated.View
+            style={[
+              tw`absolute top-0.8 left-0.5 rounded-lg items-center justify-center`,
+              {
+                width: KNOB_SIZE,
+                height: KNOB_SIZE,
+                backgroundColor: disabled ? '#9ca3af' : '#065f46',
+              },
+              knobStyle,
+            ]}
+          >
+            <Text style={tw`text-white text-lg font-black`}>››</Text>
+          </Animated.View>
+        </GestureDetector>
+      </View>
+    </View>
+  );
+}
+
 const FlaboShareLiveLocation = () => {
+  const navigation = useNavigation();
+  const route = useRoute();
   const watchIdRef = useRef(null);
   const cameraRef = useRef(null);
   const lastSentCoordsRef = useRef(null);
@@ -38,6 +163,12 @@ const FlaboShareLiveLocation = () => {
   const [tracking, setTracking] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(17);
+  const [bgLocationEnabled, setBgLocationEnabled] = useState(false);
+  const [liveSession, setLiveSession] = useState(null);
+  const [mapStyleUrl, setMapStyleUrl] = useState(MAP_STYLE_PRIMARY);
+  const [mapError, setMapError] = useState('');
+
+  const sampleId = route?.params?.id ?? null;
 
   const latitude = currentLocation?.latitude || branchLocation?.latitude || 26.8467;
   const longitude = currentLocation?.longitude || branchLocation?.longitude || 80.9462;
@@ -133,10 +264,19 @@ const FlaboShareLiveLocation = () => {
           PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
         ]);
 
-        return (
+        const fineGranted =
           granted['android.permission.ACCESS_FINE_LOCATION'] ===
-          PermissionsAndroid.RESULTS.GRANTED
-        );
+          PermissionsAndroid.RESULTS.GRANTED;
+
+        if (fineGranted && bgLocationEnabled) {
+          try {
+            await PermissionsAndroid.request(
+              PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION,
+            );
+          } catch {}
+        }
+
+        return fineGranted;
       }
 
       const status = await Geolocation.requestAuthorization?.('always');
@@ -381,6 +521,15 @@ const FlaboShareLiveLocation = () => {
   };
 
   const stopWatchLocation = () => {
+    const mustKeepLive = bgLocationEnabled && liveSession?.active;
+    if (mustKeepLive) {
+      Alert.alert(
+        'Live location is locked',
+        'You can stop location sharing only after marking the sample as Delivered.',
+      );
+      return;
+    }
+
     if (watchIdRef.current !== null) {
       Geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
@@ -388,6 +537,55 @@ const FlaboShareLiveLocation = () => {
 
     setTracking(false);
     setApiStatus('Tracking stopped');
+    stopLiveLocationSession().catch(() => {});
+  };
+
+  const markSampleDelivered = async () => {
+    if (!sampleId) {
+      Alert.alert('Missing Sample', 'Sample ID not found for delivery.');
+      return;
+    }
+
+    try {
+      setApiStatus('Marking delivered...');
+      await api.post('FlaboDashBoard/update-sample-status', {
+        id: sampleId,
+        sampleDelivered: true,
+      });
+
+      await stopLiveLocationSession();
+      setLiveSession(null);
+
+      if (watchIdRef.current !== null) {
+        Geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      setTracking(false);
+
+      Alert.alert('Delivered', 'Sample delivered successfully.', [
+        {
+          text: 'OK',
+          onPress: () => {
+            // Return user to dashboard after completion.
+            try {
+              navigation.reset({
+                index: 0,
+                routes: [{name: 'DashboardHome'}],
+              });
+            } catch {
+              navigation.navigate('MainTabs', {
+                screen: 'Dashboard',
+                params: {screen: 'DashboardHome'},
+              });
+            }
+          },
+        },
+      ]);
+    } catch (error) {
+      console.log('Deliver Error:', error?.response?.data || error);
+      Alert.alert('Failed', 'Failed to mark sample delivered.');
+      setApiStatus('Failed to mark delivered');
+    }
   };
 
   const clearPath = () => {
@@ -404,6 +602,7 @@ const FlaboShareLiveLocation = () => {
     setApiStatus('Path cleared');
   };
 
+  // Intentionally re-start tracking when identity/branch changes.
   useEffect(() => {
     startWatchLocation();
 
@@ -419,7 +618,49 @@ const FlaboShareLiveLocation = () => {
         hubRef.current = null;
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fieldBoyId, loginBranchId]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadPrefs = async () => {
+      try {
+        const enabled = await getBackgroundLocationEnabled();
+        if (mounted) setBgLocationEnabled(enabled);
+      } catch {}
+
+      try {
+        const session = await getLiveLocationSession();
+        if (mounted) setLiveSession(session);
+      } catch {}
+    };
+
+    loadPrefs();
+    const interval = setInterval(loadPrefs, 1500);
+
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!sampleId) return;
+    startLiveLocationSession(sampleId)
+      .then(() => getLiveLocationSession())
+      .then(session => setLiveSession(session))
+      .catch(() => {});
+  }, [sampleId]);
+
+  const onMapFail = e => {
+    const msg =
+      e?.nativeEvent?.error || e?.nativeEvent?.message || 'Map failed to load';
+    setMapError(String(msg));
+    if (mapStyleUrl !== MAP_STYLE_FALLBACK) {
+      setMapStyleUrl(MAP_STYLE_FALLBACK);
+    }
+  };
 
   const currentMarkerGeoJSON = {
     type: 'FeatureCollection',
@@ -487,9 +728,12 @@ const FlaboShareLiveLocation = () => {
     <View style={tw`flex-1 bg-white`}>
       <Map
         style={tw`flex-1`}
-        mapStyle={MAP_STYLE}
+        mapStyle={mapStyleUrl}
         logo={false}
         attribution={false}
+        onDidFailLoadingMap={onMapFail}
+        onDidFailLoadingStyle={onMapFail}
+        onDidFailLoadingTile={onMapFail}
         androidView={Platform.OS === 'android' ? 'texture' : undefined}>
         <Camera ref={cameraRef} zoom={zoomLevel} center={[longitude, latitude]} />
 
@@ -538,6 +782,14 @@ const FlaboShareLiveLocation = () => {
         )}
       </Map>
 
+      {!!mapError && (
+        <View style={tw`absolute top-18 left-4 right-4 bg-red-50 border border-red-200 rounded-xl px-3 py-2`}>
+          <Text style={tw`text-red-700 text-xs text-center`}>
+            Map tiles offline. Check internet/DNS. ({mapStyleUrl.includes('demotiles') ? 'fallback' : 'primary'})
+          </Text>
+        </View>
+      )}
+
       {/* Zoom Buttons */}
       <View style={tw`absolute right-4 top-28`}>
         <TouchableOpacity
@@ -559,7 +811,7 @@ const FlaboShareLiveLocation = () => {
         </TouchableOpacity>
       </View>
 
-      <View style={tw`absolute bottom-5 left-4 right-4 bg-gray-300/50 border rounded-2xl p-4`}>
+      <View style={tw`absolute bottom-5 left-0 right-0 bg-gray-300/50 border border-gray-300 rounded-2xl p-2 `}>
         <Text style={tw`text-green-700 text-lg font-bold text-center`}>
           Flabo Live Location
         </Text>
@@ -598,14 +850,40 @@ const FlaboShareLiveLocation = () => {
           Status: {apiStatus}
         </Text>
 
+        {sampleId ? (
+          <View style={tw`mt-4`}>
+            <SlideToDeliver
+              disabled={false}
+              onConfirm={markSampleDelivered}
+            />
+          </View>
+        ) : null}
+
         <View style={tw`flex-row mt-4`}>
+          {(() => {
+            const mustKeepLive =
+              bgLocationEnabled && liveSession?.active;
+            const primaryBg = tracking
+              ? mustKeepLive
+                ? 'bg-gray-500'
+                : 'bg-red-500'
+              : 'bg-green-600';
+            const primaryLabel = tracking
+              ? mustKeepLive
+                ? 'Locked (Deliver first)'
+                : 'Stop Tracking'
+              : 'Start Tracking';
+
+            return (
           <TouchableOpacity
             onPress={tracking ? stopWatchLocation : startWatchLocation}
-            style={tw`flex-1 ${tracking ? 'bg-red-500' : 'bg-green-600'} py-3 rounded-xl mr-2`}>
+            style={tw`flex-1 ${primaryBg} py-3 rounded-xl mr-2`}>
             <Text style={tw`text-white text-center font-bold`}>
-              {tracking ? 'Stop Tracking' : 'Start Tracking'}
+              {primaryLabel}
             </Text>
           </TouchableOpacity>
+            );
+          })()}
 
           <TouchableOpacity
             onPress={clearPath}

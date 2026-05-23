@@ -29,6 +29,263 @@ const CARD_WIDTH = width - 32;
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
+const FloatingCard = React.memo(function FloatingCard({
+  item,
+  index,
+  isDarkMode,
+  currentTheme,
+  selectedCard,
+  onToggleSelected,
+}) {
+  const isSelected = selectedCard === item.id;
+
+  return (
+    <Animated.View
+      entering={FadeInDown.delay(index * 100).springify().damping(20)}
+      layout={Layout.springify()}
+      style={[
+        tw`mb-1.5`,
+        Platform.OS === 'ios' && {
+          shadowColor: isDarkMode ? '#000' : item.accentColor,
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: isDarkMode ? 0.3 : 0.2,
+          shadowRadius: 20,
+        },
+        Platform.OS === 'android' && {
+          elevation: 8,
+        },
+      ]}
+    >
+      <TouchableOpacity
+        onPress={() => onToggleSelected(isSelected ? null : item.id)}
+        style={tw`overflow-hidden`}
+      >
+        <LinearGradient
+          colors={currentTheme.cardGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[
+            tw`rounded-xl overflow-hidden`,
+            isDarkMode && { borderWidth: 1, borderColor: currentTheme.border },
+          ]}
+        >
+          <View style={[tw`absolute top-0 right-0 w-32 h-32 opacity-10`]}>
+            <Svg width="128" height="128" viewBox="0 0 128 128">
+              <Circle cx="64" cy="64" r="63" fill={item.accentColor} />
+            </Svg>
+          </View>
+
+          <View style={tw`p-5`}>
+            <View style={tw`flex-row items-center justify-between mb-4`}>
+              <View style={tw`flex-row items-center gap-4`}>
+                <View
+                  style={[
+                    tw`w-10 h-10 rounded-2xl items-center justify-center`,
+                    {
+                      backgroundColor: isDarkMode
+                        ? `${item.accentColor}25`
+                        : `${item.accentColor}15`,
+                    },
+                  ]}
+                >
+                  {item.iconSet === 'FontAwesome5' ? (
+                    <FontAwesome5
+                      name={item.icon}
+                      size={20}
+                      color={item.accentColor}
+                    />
+                  ) : (
+                    <Icon name={item.icon} size={20} color={item.accentColor} />
+                  )}
+                </View>
+                <View>
+                  <Text
+                    style={[
+                      tw`text-xs font-semibold uppercase tracking-wider mb-1`,
+                      { color: currentTheme.textSecondary },
+                    ]}
+                  >
+                    {item.title}
+                  </Text>
+                </View>
+              </View>
+
+              <Text
+                style={[
+                  tw`text-md font-bold tracking-tight`,
+                  { color: currentTheme.text },
+                ]}
+              >
+                {item.value}
+              </Text>
+            </View>
+          </View>
+        </LinearGradient>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+});
+
+const SummaryHeader = React.memo(function SummaryHeader({
+  currentTheme,
+  dashboardData,
+  navigation,
+  themed,
+  cardWidth,
+  fromDate,
+  toDate,
+  getTodayDate,
+}) {
+  return (
+    <Animated.View entering={ZoomIn.delay(200).springify()} style={tw`mb-1`}>
+      <LinearGradient
+        colors={currentTheme.headerGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[
+          tw`rounded-xl p-4`,
+          Platform.OS === 'ios' && {
+            shadowColor: '#312e81',
+            shadowOffset: { width: 0, height: 10 },
+            shadowOpacity: 0.3,
+            shadowRadius: 25,
+          },
+        ]}
+      >
+        <View style={tw`flex-row items-center justify-between `}>
+          <View>
+            <Text
+              style={tw`text-indigo-200 text-xs font-semibold uppercase tracking-wider `}
+            >
+              Dashboard Overview
+            </Text>
+            <Text style={tw`text-white text-md font-bold tracking-tight`}>
+              Sample Analytics
+            </Text>
+            {dashboardData?.totalSampleDeliverPending > 0 && (
+              <TouchableOpacity
+                onPress={() =>
+                  navigation.navigate('Sample', {
+                    screen: 'HelpDeskHome',
+                  })
+                }
+                style={[
+                  themed.border,
+                  tw` flex-row items-center px-3 py-2 gap-4 mt-1 bg-gray-100/5`,
+                ]}
+              >
+                <Image
+                  source={{
+                    uri: 'https://cdn-icons-png.flaticon.com/128/13081/13081427.png',
+                  }}
+                  style={tw`w-10 h-10 `}
+                />
+                <View style={tw`flex-col items-end `}>
+                  <Text
+                    style={[
+                      themed.labelText,
+                      tw`text-end text-xl font-bold text-orange-500`,
+                    ]}
+                  >
+                    {dashboardData?.totalSampleDeliverPending}
+                  </Text>
+                  <Text style={tw`text-sm text-gray-400 text-center`}>
+                    Samples pending for delivery
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
+          </View>
+          <View style={tw`bg-white/20 rounded-full p-3`}>
+            <Feather name="activity" size={24} color="white" />
+          </View>
+        </View>
+
+        <View style={tw`h-16 mt-2`}>
+          <Svg width={cardWidth - 64} height="80" viewBox={`0 0 ${cardWidth - 64} 80`}>
+            <Defs>
+              <SvgGradient id="wave-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <Stop offset="0%" stopColor="#818cf8" stopOpacity="0.5" />
+                <Stop offset="100%" stopColor="#c4b5fd" stopOpacity="0.8" />
+              </SvgGradient>
+            </Defs>
+            <Path
+              d={`M 0 60 Q ${(cardWidth - 64) / 4} 20, ${(cardWidth - 64) / 2} 40 T ${cardWidth - 64} 30`}
+              stroke="url(#wave-gradient)"
+              strokeWidth="3"
+              fill="transparent"
+            />
+          </Svg>
+        </View>
+
+        <View style={tw`flex-row justify-between mt-1 pt-1 border-t border-white/10`}>
+          <View style={tw`items-center`}>
+            <Text style={tw`text-indigo-200 text-xs mb-1`}>Total Samples</Text>
+            <Text style={tw`text-white font-bold text-lg`}>
+              {dashboardData.totalSamples}
+            </Text>
+          </View>
+          <View style={tw`items-center`}>
+            <Text style={tw`text-indigo-200 text-xs mb-1`}>Collected Amount</Text>
+            <AnimateNumber
+              style={tw`text-white font-bold text-lg`}
+              timing="easeOut"
+              interval={1}
+              countBy={100}
+              value={dashboardData?.totalPaymentCollected || 0}
+            />
+          </View>
+          <View style={tw`items-center`}>
+            <Text style={tw`text-indigo-200 text-xs mb-1`}>Samples delivered</Text>
+            <Text style={tw`text-white font-bold text-lg`}>
+              {dashboardData.totalSampleDelivered || 0}
+            </Text>
+          </View>
+        </View>
+      </LinearGradient>
+    </Animated.View>
+  );
+});
+
+const LoadingSkeleton = React.memo(function LoadingSkeleton({ currentTheme }) {
+  return (
+    <View>
+      {[1, 2, 3, 4].map(idx => (
+        <View key={idx} style={tw`mb-4`}>
+          <View
+            style={[tw`rounded-3xl h-32`, { backgroundColor: currentTheme.skeletonBg }]}
+          >
+            <View style={tw`p-5`}>
+              <View style={tw`flex-row items-center gap-3`}>
+                <View
+                  style={[
+                    tw`w-12 h-12 rounded-2xl`,
+                    { backgroundColor: currentTheme.skeletonHighlight },
+                  ]}
+                />
+                <View style={tw`flex-1`}>
+                  <View
+                    style={[
+                      tw`w-24 h-3 rounded-full mb-2`,
+                      { backgroundColor: currentTheme.skeletonHighlight },
+                    ]}
+                  />
+                  <View
+                    style={[
+                      tw`w-32 h-6 rounded-full`,
+                      { backgroundColor: currentTheme.skeletonHighlight },
+                    ]}
+                  />
+                </View>
+              </View>
+            </View>
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+});
+
 const DashboardCollection = forwardRef(({ fromDate, toDate }, ref) => {
   const [dashboardData, setDashboardData] = useState({
     totalSamples: 0,
@@ -100,12 +357,12 @@ const DashboardCollection = forwardRef(({ fromDate, toDate }, ref) => {
       -1,
       true
     );
-  }, []);
+  }, [pulseAnimation, waveAnimation]);
 
-  const getTodayDate = () => {
+  const getTodayDate = useCallback(() => {
     const today = new Date();
     return today.toISOString().split('T')[0];
-  };
+  }, []);
 
   const formatCurrency = (amount) => {
     const value = Number(amount || 0);
@@ -129,11 +386,8 @@ const DashboardCollection = forwardRef(({ fromDate, toDate }, ref) => {
           loginBranchIdList: loginBranchId
         },
       });
-
       const data = response?.data?.data || {};
-
       console.log('dashboard data', data);
-
       setDashboardData({
         totalSamples: Number(data.TotalSamples || 0),
         totalPaymentCollected: Number(data.TotalPaymentCollected || 0),
@@ -150,7 +404,7 @@ const DashboardCollection = forwardRef(({ fromDate, toDate }, ref) => {
     } finally {
       setLoading(false);
     }
-  }, [fromDate, toDate]);
+  }, [fromDate, toDate, getTodayDate, loginBranchId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -213,238 +467,6 @@ const DashboardCollection = forwardRef(({ fromDate, toDate }, ref) => {
     },
   ], [dashboardData]);
 
-  const FloatingCard = ({ item, index }) => {
-    const isSelected = selectedCard === item.id;
-
-    return (
-      <Animated.View
-        entering={FadeInDown.delay(index * 100).springify().damping(20)}
-        layout={Layout.springify()}
-        style={[
-          tw`mb-1.5`,
-          Platform.OS === 'ios' && {
-            shadowColor: isDarkMode ? '#000' : item.accentColor,
-            shadowOffset: { width: 0, height: 10 },
-            shadowOpacity: isDarkMode ? 0.3 : 0.2,
-            shadowRadius: 20,
-          },
-          Platform.OS === 'android' && {
-            elevation: 8,
-          }
-        ]}
-      >
-        <TouchableOpacity
-          onPress={() => setSelectedCard(isSelected ? null : item.id)}
-          style={tw`overflow-hidden`}
-        >
-          <LinearGradient
-            colors={currentTheme.cardGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[
-              tw`rounded-xl overflow-hidden`,
-              isDarkMode && { borderWidth: 1, borderColor: currentTheme.border }
-            ]}
-          >
-            {/* Floating wave background */}
-            <View style={[tw`absolute top-0 right-0 w-32 h-32 opacity-10`]}>
-              <Svg width="128" height="128" viewBox="0 0 128 128">
-                <Circle cx="64" cy="64" r="63" fill={item.accentColor} />
-              </Svg>
-            </View>
-
-            <View style={tw`p-5`}>
-              <View style={tw`flex-row items-center justify-between mb-4`}>
-                <View style={tw`flex-row items-center gap-4`}>
-                  {/* Icon container */}
-                  <View
-                    style={[
-                      tw`w-10 h-10 rounded-2xl items-center justify-center`,
-                      {
-                        backgroundColor: isDarkMode
-                          ? `${item.accentColor}25`
-                          : `${item.accentColor}15`
-                      }
-                    ]}
-                  >
-                    {item.iconSet === 'FontAwesome5' ? (
-                      <FontAwesome5 name={item.icon} size={20} color={item.accentColor} />
-                    ) : (
-                      <Icon name={item.icon} size={20} color={item.accentColor} />
-                    )}
-                  </View>
-                  <View>
-                    <Text style={[
-                      tw`text-xs font-semibold uppercase tracking-wider mb-1`,
-                      { color: currentTheme.textSecondary }
-                    ]}>
-                      {item.title}
-                    </Text>
-                  </View>
-                </View>
-
-                <Text style={[
-                  tw`text-md font-bold tracking-tight`,
-                  { color: currentTheme.text }
-                ]}>
-                  {item.value}
-                </Text>
-              </View>
-            </View>
-          </LinearGradient>
-        </TouchableOpacity>
-      </Animated.View>
-    );
-  };
-
-  // Summary header card
-  const SummaryHeader = () => (
-    <Animated.View
-      entering={ZoomIn.delay(200).springify()}
-      style={tw`mb-1`}
-    >
-      <LinearGradient
-        colors={currentTheme.headerGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[
-          tw`rounded-xl p-4`,
-          Platform.OS === 'ios' && {
-            shadowColor: '#312e81',
-            shadowOffset: { width: 0, height: 10 },
-            shadowOpacity: 0.3,
-            shadowRadius: 25,
-          }
-        ]}
-      >
-        <View style={tw`flex-row items-center justify-between `}>
-          <View>
-            <Text style={tw`text-indigo-200 text-xs font-semibold uppercase tracking-wider `}>
-              Dashboard Overview
-            </Text>
-            <Text style={tw`text-white text-md font-bold tracking-tight`}>
-              Sample Analytics
-            </Text>
-            {
-              dashboardData?.totalSampleDeliverPending > 0 && (
-                <TouchableOpacity
-                  onPress={() => navigation.navigate('Sample', {
-                    screen: 'HelpDeskHome',
-                  })}
-                  style={[themed.border, tw` flex-row items-center px-3 py-2 gap-4 mt-1 bg-gray-100/5`]}>
-                  <Image
-                    source={{
-                      uri: 'https://cdn-icons-png.flaticon.com/128/13081/13081427.png',
-                    }}
-                    style={tw`w-10 h-10 `}
-                  />
-                  <View style={tw`flex-col items-end `}>
-                    <Text style={[themed.labelText, tw`text-end text-xl font-bold text-orange-500`]}>
-                      {dashboardData?.totalSampleDeliverPending}
-                    </Text>
-                    <Text style={tw`text-sm text-gray-400 text-center`}>
-                      Samples pending for delivery
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              )
-            }
-          </View>
-          <View style={tw`bg-white/20 rounded-full p-3`}>
-            <Feather name="activity" size={24} color="white" />
-          </View>
-        </View>
-
-        {/* Wave graph visualization */}
-        <View style={tw`h-16 mt-2`}>
-          <Svg width={CARD_WIDTH - 64} height="80" viewBox={`0 0 ${CARD_WIDTH - 64} 80`}>
-            <Defs>
-              <SvgGradient id="wave-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <Stop offset="0%" stopColor="#818cf8" stopOpacity="0.5" />
-                <Stop offset="100%" stopColor="#c4b5fd" stopOpacity="0.8" />
-              </SvgGradient>
-            </Defs>
-            <Path
-              d={`M 0 60 Q ${(CARD_WIDTH - 64) / 4} 20, ${(CARD_WIDTH - 64) / 2} 40 T ${CARD_WIDTH - 64} 30`}
-              stroke="url(#wave-gradient)"
-              strokeWidth="3"
-              fill="transparent"
-            />
-          </Svg>
-        </View>
-
-        <View style={tw`flex-row justify-between mt-1 pt-1 border-t border-white/10`}>
-          <View style={tw`items-center`}>
-            <Text style={tw`text-indigo-200 text-xs mb-1`}>Total Samples</Text>
-            <Text style={tw`text-white font-bold text-lg`}>{dashboardData.totalSamples}</Text>
-          </View>
-          <View style={tw`items-center`}>
-
-            <Text style={tw`text-indigo-200 text-xs mb-1`}>
-              Collected Amount
-            </Text>
-            <AnimateNumber
-              style={tw`text-white font-bold text-lg`}
-              timing="easeOut"
-              interval={1} countBy={100}
-              value={dashboardData?.totalPaymentCollected || 0}
-            />
-
-            {/* <CountUp
-              isCounting
-              end={dashboardData?.totalPaymentCollected || 0}
-              duration={3.2}
-              decimalPlaces={2}
-              formatter={(value) => `₹ ${Number(value).toLocaleString('en-IN')}`}
-              textStyle={{
-                color: 'white',
-                fontSize: 22,
-                fontWeight: 'bold',
-              }}
-            /> */}
-          </View>
-          <View style={tw`items-center`}>
-            <Text style={tw`text-indigo-200 text-xs mb-1`}>Samples delivered</Text>
-            <Text style={tw`text-white font-bold text-lg`}>{dashboardData.totalSampleDelivered || 0}</Text>
-          </View>
-        </View>
-      </LinearGradient>
-    </Animated.View>
-  );
-
-  // Loading skeleton
-  const LoadingSkeleton = () => (
-    <View>
-      {[1, 2, 3, 4].map((idx) => (
-        <View key={idx} style={tw`mb-4`}>
-          <View style={[
-            tw`rounded-3xl h-32`,
-            { backgroundColor: currentTheme.skeletonBg }
-          ]}>
-            <View style={tw`p-5`}>
-              <View style={tw`flex-row items-center gap-3`}>
-                <View style={[
-                  tw`w-12 h-12 rounded-2xl`,
-                  { backgroundColor: currentTheme.skeletonHighlight }
-                ]} />
-                <View style={tw`flex-1`}>
-                  <View style={[
-                    tw`w-24 h-3 rounded-full mb-2`,
-                    { backgroundColor: currentTheme.skeletonHighlight }
-                  ]} />
-                  <View style={[
-                    tw`w-32 h-6 rounded-full`,
-                    { backgroundColor: currentTheme.skeletonHighlight }
-                  ]} />
-                </View>
-              </View>
-            </View>
-          </View>
-        </View>
-      ))}
-    </View>
-  );
-
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
@@ -453,14 +475,31 @@ const DashboardCollection = forwardRef(({ fromDate, toDate }, ref) => {
         { backgroundColor: currentTheme.background }
       ]}
     >
-      <SummaryHeader />
+      <SummaryHeader
+        currentTheme={currentTheme}
+        dashboardData={dashboardData}
+        navigation={navigation}
+        themed={themed}
+        cardWidth={CARD_WIDTH}
+        fromDate={fromDate}
+        toDate={toDate}
+        getTodayDate={getTodayDate}
+      />
 
       {loading ? (
-        <LoadingSkeleton />
+        <LoadingSkeleton currentTheme={currentTheme} />
       ) : (
         <View>
           {statsCards.map((item, index) => (
-            <FloatingCard key={item.id} item={item} index={index} />
+            <FloatingCard
+              key={item.id}
+              item={item}
+              index={index}
+              isDarkMode={isDarkMode}
+              currentTheme={currentTheme}
+              selectedCard={selectedCard}
+              onToggleSelected={setSelectedCard}
+            />
           ))}
         </View>
       )}
