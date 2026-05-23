@@ -584,9 +584,7 @@ const FlaboShareLiveLocation = () => {
           Current Lng: {longitude}
         </Text>
 
-        <Text style={tw`text-gray-500 text-center mt-1 text-xs`}>
-          Zoom: {zoomLevel}
-        </Text>
+       
 
         <Text style={tw`text-gray-500 text-center mt-1 text-xs`}>
           Path Points: {pathCoordinates.length}
