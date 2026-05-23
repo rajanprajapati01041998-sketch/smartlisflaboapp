@@ -3,6 +3,7 @@ import {
   DarkTheme,
   DefaultTheme,
   NavigationContainer,
+  createNavigationContainerRef,
 } from '@react-navigation/native';
 import {useAuth} from './Authorization/AuthContext';
 import DashboardDrawer from './src/DashboardDrawer';
@@ -13,6 +14,12 @@ import {ResponsiveProvider} from './src/context/ResponsiveContext';
 import {useTheme} from './Authorization/ThemeContext';
 import StartupSplash from './src/StartupSplash';
 import useCurrentLocation from './src/utils/locationService';
+import {
+  getBackgroundLocationEnabled,
+  getLiveLocationSession,
+} from './src/utils/backgroundLocationPrefs';
+
+const navigationRef = createNavigationContainerRef();
 
 const AppContent = () => {
   const {token, latitude, longitude} = useAuth();
@@ -31,7 +38,7 @@ const AppContent = () => {
 };
 
 export default function App() {
-  const {isLoading} = useAuth();
+  const {isLoading, token} = useAuth();
   const {theme, colors} = useTheme();
   const [isStartupSplashVisible, setIsStartupSplashVisible] = useState(true);
 
@@ -85,6 +92,30 @@ export default function App() {
         />
 
         <NavigationContainer
+          ref={navigationRef}
+          onReady={async () => {
+            try {
+              if (!token) return;
+
+              const bgEnabled = await getBackgroundLocationEnabled();
+              const session = await getLiveLocationSession();
+
+              if (session?.active && session?.sampleId != null) {
+                navigationRef.navigate('MainTabs', {
+                  screen: 'Dashboard',
+                  params: {
+                    screen: 'FlaboShareLiveLocation',
+                    params: {id: session.sampleId},
+                  },
+                });
+              } else if (bgEnabled) {
+                navigationRef.navigate('MainTabs', {
+                  screen: 'Dashboard',
+                  params: {screen: 'UpdateSampleStatus'},
+                });
+              }
+            } catch {}
+          }}
           theme={{
             ...(theme === 'dark' ? DarkTheme : DefaultTheme),
             colors: {
