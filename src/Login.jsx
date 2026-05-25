@@ -45,7 +45,8 @@ const Login = () => {
         latitude,
         longitude,
         ipAddress,
-        setFieldBoyData
+        setFieldBoyData,
+        setLoginHistoryId
     } = useAuth();
 
     const [userIdApp, setUserIdApp] = useState('');
@@ -194,9 +195,10 @@ const Login = () => {
                 const data = response.data?.data;
                 setToken(token);
                 setUserData(data?.fieldBoyName);
-                setUserId(data?.fieldBoyId);
+                setUserId(data?.userId);
                 setFieldBoyId(data?.fieldBoyId);
                 setLoginBranchId(data?.loginBranchId);
+                setLoginHistoryId(data?.loginHistoryId);
                 setFieldBoyData(data);
                 await AsyncStorage.setItem('fieldBoyToken', token);
                 await AsyncStorage.setItem('fieldBoyData', JSON.stringify(data));
