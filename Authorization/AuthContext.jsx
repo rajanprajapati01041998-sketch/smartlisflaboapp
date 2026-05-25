@@ -133,29 +133,25 @@ export const AuthProvider = ({ children }) => {
     try {
       const storedFieldBoyToken =
         await AsyncStorage.getItem('fieldBoyToken');
-
       const storedFieldBoyData =
         await AsyncStorage.getItem('fieldBoyData');
-
       const storedLoginBranchId =
         await AsyncStorage.getItem('loginBranchId');
-
       const parsedFieldBoyData = storedFieldBoyData
         ? JSON.parse(storedFieldBoyData)
         : null;
-
       console.log('Parsed Field Boy Data:', parsedFieldBoyData,);
       setToken(storedFieldBoyToken);
       setFieldBoyData(parsedFieldBoyData);
       setUserData(parsedFieldBoyData);
       setFieldBoyId(parsedFieldBoyData?.fieldBoyId);
+      setUserId(parsedFieldBoyData?.userId);
       setLoginBranchId(
         storedLoginBranchId
           ? JSON.parse(storedLoginBranchId)
           : parsedFieldBoyData?.loginBranchId,
       );
       setLoginHistoryId(parsedFieldBoyData?.loginHistoryId);
-
     } catch (error) {
       console.log('Error loading auth data:', error);
     } finally {
@@ -174,7 +170,6 @@ export const AuthProvider = ({ children }) => {
     await AsyncStorage.removeItem('fieldBoyData');
 
     setToken(null);
-    setUser(null);
     setUserData(null);
     setFieldBoyData(null);
     setUserId(null);

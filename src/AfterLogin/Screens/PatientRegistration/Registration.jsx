@@ -536,7 +536,6 @@ const RegistrationScreen = () => {
           const rate = Number(item.Amount ?? item.Rate ?? 0);
           const qty = Number(item.Qty ?? item.qty ?? 1);
           const gross = rate * qty;
-
           const discPer = isUnderPackage === 1 ? 0 : finalDiscountPercentage;
           const discAmt = isUnderPackage === 1
             ? 0
