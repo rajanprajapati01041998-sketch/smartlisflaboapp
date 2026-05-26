@@ -22,9 +22,10 @@ import {
 const navigationRef = createNavigationContainerRef();
 
 const AppContent = () => {
-  const {token, latitude, longitude,userId} = useAuth();
+  const {token, latitude, longitude} = useAuth();
 
-//  console.log('App userId:', userId);
+  // Ask for location permission on app start so coordinates are available
+  // for both Login and authenticated flows.
   useCurrentLocation({enabled: true});
 
   useEffect(() => {
@@ -37,9 +38,10 @@ const AppContent = () => {
 };
 
 export default function App() {
-  const {isLoading, token} = useAuth();
+  const {isLoading, token,userId} = useAuth();
   const {theme, colors} = useTheme();
   const [isStartupSplashVisible, setIsStartupSplashVisible] = useState(true);
+ console.log('App userId:', userId);
 
   useEffect(() => {
     requestStoragePermission();
