@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,8 +9,8 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
-import {useNavigation, useRoute} from '@react-navigation/native';
-import {Gesture, GestureDetector} from 'react-native-gesture-handler';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
   useAnimatedStyle,
@@ -19,12 +19,12 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import Geolocation from '@react-native-community/geolocation';
-import {Map, Camera, GeoJSONSource, Layer} from '@maplibre/maplibre-react-native';
+import { Map, Camera, GeoJSONSource, Layer } from '@maplibre/maplibre-react-native';
 import * as signalR from '@microsoft/signalr';
 import tw from 'twrnc';
 
-import {useAuth} from '../../../../Authorization/AuthContext';
-import api, {API_BASE_URL} from '../../../../Authorization/api';
+import { useAuth } from '../../../../Authorization/AuthContext';
+import api, { API_BASE_URL } from '../../../../Authorization/api';
 import {
   getBackgroundLocationEnabled,
   getLiveLocationSession,
@@ -37,9 +37,9 @@ const MAP_STYLE_FALLBACK = 'https://demotiles.maplibre.org/style.json';
 const MIN_DISTANCE_METERS = 1;
 const HUB_URL = `${API_BASE_URL.replace('/api', '')}locationHub`;
 
-const {width: SCREEN_WIDTH} = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-function SlideToDeliver({disabled, onConfirm}) {
+function SlideToDeliver({ disabled, loading, done, onConfirm }) {
   const SLIDER_HEIGHT = 54;
   const KNOB_SIZE = 46;
   const H_PADDING = 6;
@@ -48,28 +48,11 @@ function SlideToDeliver({disabled, onConfirm}) {
   const translateX = useSharedValue(0);
 
   const reset = () => {
-    translateX.value = withTiming(0, {duration: 220});
-  };
-
-  const openConfirm = () => {
-    Alert.alert(
-      'Complete Delivery?',
-      'Slide will mark sample as Delivered.',
-      [
-        {text: 'Cancel', style: 'cancel', onPress: reset},
-        {
-          text: 'Delivered',
-          onPress: () => {
-            reset();
-            onConfirm?.();
-          },
-        },
-      ],
-    );
+    translateX.value = withTiming(0, { duration: 220 });
   };
 
   const pan = Gesture.Pan()
-    .enabled(!disabled)
+    .enabled(!disabled && !loading && !done)
     .onUpdate(e => {
       const next = Math.max(0, Math.min(maxTranslate, e.translationX));
       translateX.value = next;
@@ -77,15 +60,16 @@ function SlideToDeliver({disabled, onConfirm}) {
     .onEnd(() => {
       const threshold = maxTranslate * 0.82;
       if (translateX.value >= threshold) {
-        translateX.value = withTiming(maxTranslate, {duration: 160});
-        runOnJS(openConfirm)();
+        translateX.value = withTiming(maxTranslate, { duration: 160 });
+        runOnJS(reset)();
+        runOnJS(onConfirm)?.();
       } else {
-        translateX.value = withTiming(0, {duration: 200});
+        translateX.value = withTiming(0, { duration: 200 });
       }
     });
 
   const knobStyle = useAnimatedStyle(() => ({
-    transform: [{translateX: translateX.value}],
+    transform: [{ translateX: translateX.value }],
   }));
 
   const fillStyle = useAnimatedStyle(() => ({
@@ -100,15 +84,20 @@ function SlideToDeliver({disabled, onConfirm}) {
           {
             width: sliderWidth,
             height: SLIDER_HEIGHT,
-            borderColor: disabled ? 'rgba(107,114,128,0.35)' : 'rgba(16,185,129,0.35)',
-            backgroundColor: disabled ? 'rgba(107,114,128,0.10)' : 'rgba(16,185,129,0.12)',
+            borderColor:
+              disabled || done ? 'rgba(107,114,128,0.35)' : 'rgba(16,185,129,0.35)',
+            backgroundColor:
+              disabled || done ? 'rgba(107,114,128,0.10)' : 'rgba(16,185,129,0.12)',
           },
         ]}
       >
         <Animated.View
           style={[
             tw`absolute left-0 top-0 bottom-0 rounded-lg`,
-            {backgroundColor: disabled ? 'rgba(107,114,128,0.18)' : 'rgba(16,185,129,0.45)'},
+            {
+              backgroundColor:
+                disabled || done ? 'rgba(107,114,128,0.18)' : 'rgba(16,185,129,0.45)',
+            },
             fillStyle,
           ]}
         />
@@ -117,10 +106,16 @@ function SlideToDeliver({disabled, onConfirm}) {
           <Text
             style={tw.style(
               `font-bold tracking-wide`,
-              disabled ? 'text-gray-500' : 'text-emerald-900',
+              disabled || done ? 'text-gray-500' : 'text-emerald-900',
             )}
           >
-            {disabled ? 'Delivered Locked' : 'Slide to complete delivery'}
+            {done
+              ? 'Delivered'
+              : loading
+                ? 'Updating...'
+                : disabled
+                  ? 'Delivered Locked'
+                  : 'Slide to complete delivery'}
           </Text>
         </View>
 
@@ -131,12 +126,14 @@ function SlideToDeliver({disabled, onConfirm}) {
               {
                 width: KNOB_SIZE,
                 height: KNOB_SIZE,
-                backgroundColor: disabled ? '#9ca3af' : '#065f46',
+                backgroundColor: disabled || done ? '#9ca3af' : '#065f46',
               },
               knobStyle,
             ]}
           >
-            <Text style={tw`text-white text-lg font-black`}>››</Text>
+            <Text style={tw`text-white text-lg font-black`}>
+              {loading ? '…' : '››'}
+            </Text>
           </Animated.View>
         </GestureDetector>
       </View>
@@ -152,7 +149,7 @@ const FlaboShareLiveLocation = () => {
   const lastSentCoordsRef = useRef(null);
   const hubRef = useRef(null);
 
-  const {fieldBoyId, loginBranchId, fieldBoyData} = useAuth();
+  const { fieldBoyId, loginBranchId, fieldBoyData } = useAuth();
 
   const [branchLocation, setBranchLocation] = useState(null);
   const [currentLocation, setCurrentLocation] = useState(null);
@@ -167,6 +164,8 @@ const FlaboShareLiveLocation = () => {
   const [liveSession, setLiveSession] = useState(null);
   const [mapStyleUrl, setMapStyleUrl] = useState(MAP_STYLE_PRIMARY);
   const [mapError, setMapError] = useState('');
+  const [delivering, setDelivering] = useState(false);
+  const [delivered, setDelivered] = useState(false);
 
   const sampleId = route?.params?.id ?? null;
 
@@ -185,17 +184,17 @@ const FlaboShareLiveLocation = () => {
   const zoomIn = () => {
     const nextZoom = Math.min(zoomLevel + 1, 20);
     setZoomLevel(nextZoom);
-    moveCamera({latitude, longitude}, nextZoom);
+    moveCamera({ latitude, longitude }, nextZoom);
   };
 
   const zoomOut = () => {
     const nextZoom = Math.max(zoomLevel - 1, 3);
     setZoomLevel(nextZoom);
-    moveCamera({latitude, longitude}, nextZoom);
+    moveCamera({ latitude, longitude }, nextZoom);
   };
 
   const goToCurrentLocation = () => {
-    moveCamera({latitude, longitude}, zoomLevel);
+    moveCamera({ latitude, longitude }, zoomLevel);
   };
 
   const getDistanceInMeters = (lat1, lon1, lat2, lon2) => {
@@ -207,9 +206,9 @@ const FlaboShareLiveLocation = () => {
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos(toRad(lat1)) *
-        Math.cos(toRad(lat2)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
 
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   };
@@ -273,7 +272,7 @@ const FlaboShareLiveLocation = () => {
             await PermissionsAndroid.request(
               PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION,
             );
-          } catch {}
+          } catch { }
         }
 
         return fineGranted;
@@ -293,15 +292,16 @@ const FlaboShareLiveLocation = () => {
         hubRef.current &&
         hubRef.current.state === signalR.HubConnectionState.Connected
       ) {
+        setSocketConnected(true);
         return true;
       }
 
       const connection = new signalR.HubConnectionBuilder()
-        .withUrl(String(HUB_URL), {
+        .withUrl(HUB_URL, {
           skipNegotiation: true,
           transport: signalR.HttpTransportType.WebSockets,
         })
-        .withAutomaticReconnect()
+        .withAutomaticReconnect([0, 2000, 5000, 10000])
         .configureLogging(signalR.LogLevel.Information)
         .build();
 
@@ -310,9 +310,13 @@ const FlaboShareLiveLocation = () => {
         setApiStatus('Socket reconnecting...');
       });
 
-      connection.onreconnected(() => {
+      connection.onreconnected(async () => {
         setSocketConnected(true);
         setApiStatus('Socket reconnected');
+
+        if (fieldBoyId) {
+          await connection.invoke('JoinFieldBoyLive', Number(fieldBoyId));
+        }
       });
 
       connection.onclose(() => {
@@ -324,13 +328,23 @@ const FlaboShareLiveLocation = () => {
 
       hubRef.current = connection;
       setSocketConnected(true);
+
+      if (fieldBoyId) {
+        const liveResult = await connection.invoke(
+          'JoinFieldBoyLive',
+          Number(fieldBoyId),
+        );
+
+        console.log('JoinFieldBoyLive result:', liveResult);
+      }
+
       setApiStatus('Socket connected');
 
       return true;
     } catch (error) {
       console.log('Socket connection failed:', error);
       setSocketConnected(false);
-      setApiStatus('Socket connection failed');
+      setApiStatus(error?.message || 'Socket connection failed');
       return false;
     }
   };
@@ -458,8 +472,8 @@ const FlaboShareLiveLocation = () => {
         }
       },
       {
-        enableHighAccuracy: true,
-        timeout: 120000,
+        enableHighAccuracy: false,
+        timeout: 500,
         maximumAge: 0,
         distanceFilter: 0,
         forceRequestLocation: true,
@@ -508,12 +522,12 @@ const FlaboShareLiveLocation = () => {
         setLoading(false);
       },
       {
-        enableHighAccuracy: true,
+        enableHighAccuracy: false,
         distanceFilter: 1,
         interval: 3000,
         fastestInterval: 2000,
         maximumAge: 0,
-        timeout: 120000,
+        timeout: 500,
         forceLocationManager: true,
         showLocationDialog: true,
       },
@@ -537,16 +551,19 @@ const FlaboShareLiveLocation = () => {
 
     setTracking(false);
     setApiStatus('Tracking stopped');
-    stopLiveLocationSession().catch(() => {});
+    stopLiveLocationSession().catch(() => { });
   };
 
   const markSampleDelivered = async () => {
+    if (delivering || delivered) return;
+
     if (!sampleId) {
       Alert.alert('Missing Sample', 'Sample ID not found for delivery.');
       return;
     }
 
     try {
+      setDelivering(true);
       setApiStatus('Marking delivered...');
       await api.post('FlaboDashBoard/update-sample-status', {
         id: sampleId,
@@ -562,29 +579,21 @@ const FlaboShareLiveLocation = () => {
       }
       setTracking(false);
 
-      Alert.alert('Delivered', 'Sample delivered successfully.', [
-        {
-          text: 'OK',
-          onPress: () => {
-            // Return user to dashboard after completion.
-            try {
-              navigation.reset({
-                index: 0,
-                routes: [{name: 'DashboardHome'}],
-              });
-            } catch {
-              navigation.navigate('MainTabs', {
-                screen: 'Dashboard',
-                params: {screen: 'DashboardHome'},
-              });
-            }
-          },
-        },
-      ]);
+      setDelivered(true);
+      setApiStatus('Sample delivered successfully');
+
+      setTimeout(() => {
+        navigation.navigate('MainTabs', {
+          screen: 'Dashboard',
+          params: { screen: 'DashboardHome' },
+        });
+      }, 250);
     } catch (error) {
       console.log('Deliver Error:', error?.response?.data || error);
       Alert.alert('Failed', 'Failed to mark sample delivered.');
       setApiStatus('Failed to mark delivered');
+    } finally {
+      setDelivering(false);
     }
   };
 
@@ -618,7 +627,7 @@ const FlaboShareLiveLocation = () => {
         hubRef.current = null;
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fieldBoyId, loginBranchId]);
 
   useEffect(() => {
@@ -628,12 +637,12 @@ const FlaboShareLiveLocation = () => {
       try {
         const enabled = await getBackgroundLocationEnabled();
         if (mounted) setBgLocationEnabled(enabled);
-      } catch {}
+      } catch { }
 
       try {
         const session = await getLiveLocationSession();
         if (mounted) setLiveSession(session);
-      } catch {}
+      } catch { }
     };
 
     loadPrefs();
@@ -650,7 +659,7 @@ const FlaboShareLiveLocation = () => {
     startLiveLocationSession(sampleId)
       .then(() => getLiveLocationSession())
       .then(session => setLiveSession(session))
-      .catch(() => {});
+      .catch(() => { });
   }, [sampleId]);
 
   const onMapFail = e => {
@@ -666,15 +675,15 @@ const FlaboShareLiveLocation = () => {
     type: 'FeatureCollection',
     features: currentLocation
       ? [
-          {
-            type: 'Feature',
-            geometry: {
-              type: 'Point',
-              coordinates: [longitude, latitude],
-            },
-            properties: {},
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [longitude, latitude],
           },
-        ]
+          properties: {},
+        },
+      ]
       : [],
   };
 
@@ -682,15 +691,15 @@ const FlaboShareLiveLocation = () => {
     type: 'FeatureCollection',
     features: branchLocation
       ? [
-          {
-            type: 'Feature',
-            geometry: {
-              type: 'Point',
-              coordinates: [branchLocation.longitude, branchLocation.latitude],
-            },
-            properties: {},
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [branchLocation.longitude, branchLocation.latitude],
           },
-        ]
+          properties: {},
+        },
+      ]
       : [],
   };
 
@@ -836,7 +845,7 @@ const FlaboShareLiveLocation = () => {
           Current Lng: {longitude}
         </Text>
 
-       
+
 
         <Text style={tw`text-gray-500 text-center mt-1 text-xs`}>
           Path Points: {pathCoordinates.length}
@@ -854,6 +863,8 @@ const FlaboShareLiveLocation = () => {
           <View style={tw`mt-4`}>
             <SlideToDeliver
               disabled={false}
+              loading={delivering}
+              done={delivered}
               onConfirm={markSampleDelivered}
             />
           </View>
@@ -875,13 +886,13 @@ const FlaboShareLiveLocation = () => {
               : 'Start Tracking';
 
             return (
-          <TouchableOpacity
-            onPress={tracking ? stopWatchLocation : startWatchLocation}
-            style={tw`flex-1 ${primaryBg} py-3 rounded-xl mr-2`}>
-            <Text style={tw`text-white text-center font-bold`}>
-              {primaryLabel}
-            </Text>
-          </TouchableOpacity>
+              <TouchableOpacity
+                onPress={tracking ? stopWatchLocation : startWatchLocation}
+                style={tw`flex-1 ${primaryBg} py-3 rounded-xl mr-2`}>
+                <Text style={tw`text-white text-center font-bold`}>
+                  {primaryLabel}
+                </Text>
+              </TouchableOpacity>
             );
           })()}
 

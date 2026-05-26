@@ -65,7 +65,7 @@ const RegistrationScreen = () => {
   const [address, setAddress] = useState('');
   const [medicalHistory, setMedicalHistory] = useState('');
   const [vistType, setVisitype] = useState("Home Collection");
-  const [collectionDateTime, setCollectionDateTime] = useState(null);
+  const [collectionDateTime, setCollectionDateTime] = useState(() => new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [tempDate, setTempDate] = useState(new Date()); // For iOS modal
@@ -173,7 +173,6 @@ const RegistrationScreen = () => {
     setSelectedTitle(patientData?.Title || "Mr.");
     setFirstName(patientData?.FirstName || "")
     setGender(patientData?.Gender || "MALE")
-    setGender(patientData?.Gender || "")
     setBalanceAmount(patientData?.TotalBalanceOfAdvanceAmount || 0)
     setContactNumber(patientData?.ContactNumber)
     const nextDob = parseDOBValue(patientData?.DOB);
@@ -192,10 +191,10 @@ const RegistrationScreen = () => {
   }, [patientData, parseDOBValue])
 
   useEffect(() => {
-    const title = String(selectedTitle || '');
-    if (['Mr.', 'mr.', 'master','dr.','Mr.'].includes(title)) {
+    const title = String(selectedTitle || '').trim().toLowerCase();
+    if (['mr.', 'mr', 'master', 'master.', 'mstr.', 'mstr'].includes(title)) {
       setGender('MALE');
-    } else if (['mrs.', 'mrs.', 'miss.', 'ms.', 'ms.'].includes(title)) {
+    } else if (['mrs.', 'mrs', 'miss.', 'miss', 'ms.', 'ms'].includes(title)) {
       setGender('FEMALE');
     } else {
       setGender('OTHER');
@@ -261,13 +260,15 @@ const RegistrationScreen = () => {
 
     // Visit
     setVisitype('Home Collection');
-    setCollectionDateTime(null);
+    setCollectionDateTime(new Date());
+    setTempDate(new Date());
+    setTempTime(new Date());
 
     // Selection
     setSelectedReferDoctor(null);
     setSelectedReferLab(null);
     setSelectedFieldBoy(null);
-    setSelectedTitle(null);
+    setSelectedTitle('Mr.');
 
     // Billing
     setGrossAmount(null);
@@ -1000,14 +1001,17 @@ const RegistrationScreen = () => {
   const formatDateTime = (dateTime) => {
     if (!dateTime || !(dateTime instanceof Date)) return '- Collection Date Time -';
 
-    return dateTime.toLocaleString('en-GB', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
+    const dd = String(dateTime.getDate()).padStart(2, '0');
+    const mm = String(dateTime.getMonth() + 1).padStart(2, '0');
+    const yyyy = String(dateTime.getFullYear());
+    const minutes = String(dateTime.getMinutes()).padStart(2, '0');
+    const hours24 = dateTime.getHours();
+    const period = hours24 >= 12 ? 'PM' : 'AM';
+    const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
+    const hh = String(hours12).padStart(2, '0');
+
+    // Example: 26/05/2026 09:15 AM
+    return `${dd}/${mm}/${yyyy} ${hh}:${minutes} ${period}`;
   };
 
   return (
