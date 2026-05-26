@@ -192,9 +192,8 @@ const RegistrationScreen = () => {
   }, [patientData, parseDOBValue])
 
   useEffect(() => {
-    const title = String(selectedTitle || '').toLowerCase();
-
-    if (['Mr.', 'mr.', 'master','dr.'].includes(title)) {
+    const title = String(selectedTitle || '');
+    if (['Mr.', 'mr.', 'master','dr.','Mr.'].includes(title)) {
       setGender('MALE');
     } else if (['mrs.', 'mrs.', 'miss.', 'ms.', 'ms.'].includes(title)) {
       setGender('FEMALE');
