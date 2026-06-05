@@ -17,10 +17,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../../../Authorization/AuthContext';
 import { SearchGetInvestigationListDetails } from './services/doctorService';
 import { getColorCode } from '../../../utils/colorUtils';
-import ViewTestRangeDetails from './ViewTestRangeDetails';
 import { useTheme } from '../../../../Authorization/ThemeContext';
 import { getThemeStyles } from '../../../utils/themeStyles';
 import api from '../../../../Authorization/api';
+import ViewTestRangeDetails from './ViewTestRangeDetails';
 
 const toNumber = (v, fallback = 0) => {
   const n = Number(v);
@@ -46,11 +46,11 @@ const SearchSelectServiceItem = ({
   const [detailsList, setDetailsList] = useState([]);
   const [deletedIds, setDeletedIds] = useState([]);
   const [listVersion, setListVersion] = useState(0);
-
   const [rangeModalVisible, setRangeModalVisible] = useState(false);
   const [selectedServiceItemId, setSelectedServiceItemId] = useState(null);
   const [selectedServiceItemName, setSelectedServiceItemName] = useState(null);
   const [selectedAllItem, setSelectedAllItem] = useState(null);
+  const [itemHeights, setItemHeights] = useState({});
 
   const {
     setServiceItem,
@@ -71,7 +71,9 @@ const SearchSelectServiceItem = ({
 
   const totalAmount = useMemo(() => {
     return visibleDetailsList.reduce((sum, item) => {
-      return sum + Number(item?.rate || 0) * Number(item?.qty || 1);
+      const qty = Number(item?.qty) || 1;
+      const rate = Number(item?.rate) || 0;
+      return sum + (rate * qty);
     }, 0);
   }, [visibleDetailsList]);
 
@@ -95,6 +97,35 @@ const SearchSelectServiceItem = ({
       });
     }, 100);
   }, []);
+
+  // Update quantity for a specific item
+  const updateQuantity = useCallback((itemId, newQty) => {
+    let parsedQty = parseInt(newQty, 10);
+    if (isNaN(parsedQty)) {
+      parsedQty = 1;
+    }
+    const validQty = parsedQty < 1 ? 1 : parsedQty;
+
+    setDetailsList(prev =>
+      prev.map(item =>
+        getDetailId(item) === itemId
+          ? { ...item, qty: validQty }
+          : item,
+      ),
+    );
+
+    // Force list update to recalculate heights
+    setListVersion(prev => prev + 1);
+    markDirty();
+    
+    // Trigger a re-render of the FlatList
+    setTimeout(() => {
+      flatListRef.current?.scrollToOffset?.({
+        offset: flatListRef.current?.scrollOffset,
+        animated: false,
+      });
+    }, 0);
+  }, [markDirty]);
 
   useEffect(() => {
     let cancelled = false;
@@ -171,6 +202,9 @@ const SearchSelectServiceItem = ({
               toNumber(selected?.itemId),
             );
 
+            const defaultQty = Number(selected?.qty);
+            const initialQty = (defaultQty && defaultQty > 0) ? defaultQty : 1;
+
             return {
               ...details,
               serviceItemId,
@@ -178,9 +212,10 @@ const SearchSelectServiceItem = ({
               categoryId: toNumber(details?.categoryId, toNumber(selected?.categoryId)),
               subCategoryId: toNumber(details?.subCategoryId, toNumber(selected?.subCategoryId)),
               subSubCategoryId: toNumber(details?.subSubCategoryId, toNumber(selected?.subSubCategoryId)),
-              qty: 1,
+              qty: initialQty,
               urgent: false,
               rate: toNumber(details?.rate),
+              originalQty: initialQty,
             };
           })
           .filter(Boolean);
@@ -231,6 +266,7 @@ const SearchSelectServiceItem = ({
         ),
       );
 
+      setListVersion(prev => prev + 1);
       markDirty();
     },
     [markDirty],
@@ -248,6 +284,7 @@ const SearchSelectServiceItem = ({
         ),
       );
 
+      setListVersion(prev => prev + 1);
       markDirty();
     },
     [markDirty],
@@ -381,8 +418,8 @@ const SearchSelectServiceItem = ({
           item?.sampleType ??
           '';
 
-        const qty = Number(item?.qty || 1);
-        const rate = Number(item?.rate || 0);
+        const qty = Number(item?.qty) || 1;
+        const rate = Number(item?.rate) || 0;
         const gross = rate * qty;
         const isUrgent = item.urgent ? 1 : 0;
 
@@ -395,7 +432,7 @@ const SearchSelectServiceItem = ({
           SubSubCategoryId: item.subSubCategoryId,
           CorporateAlias: item.corporateAlias || '',
           CorporateCode: item.corporateCode || '',
-          Qty: qty, qty,
+          Qty: qty,
           Rate: rate,
           Amount: rate,
           GrossAmt: gross,
@@ -457,12 +494,36 @@ const SearchSelectServiceItem = ({
     setRangeModalVisible(true);
   }, []);
 
-  const renderItem = ({ item }) => {
+  const onItemLayout = useCallback((event, itemId) => {
+    const { height } = event.nativeEvent.layout;
+    setItemHeights(prev => ({
+      ...prev,
+      [itemId]: height,
+    }));
+  }, []);
+
+  const getItemLayout = useCallback((_, index) => {
+    const item = visibleDetailsList[index];
+    const itemId = item ? getDetailId(item) : null;
+    const height = itemId && itemHeights[itemId] ? itemHeights[itemId] : 180;
+    
+    return {
+      length: height,
+      offset: height * index,
+      index,
+    };
+  }, [visibleDetailsList, itemHeights]);
+
+  const renderItem = ({ item, index }) => {
     const colorCode = getColorCode(item?.containerColor);
     const isPackage = Number(item?.categoryId) === 11;
+    const currentQty = item?.qty || 1;
 
     return (
-      <View style={[themed.childScreen, themed.border, tw`rounded-xl p-3 mb-3`]}>
+      <View 
+        onLayout={(event) => onItemLayout(event, getDetailId(item))}
+        style={[themed.childScreen, themed.border, tw`rounded-xl p-3 mb-3`]}
+      >
         <View style={tw`flex-row justify-between items-center`}>
           <View style={tw`flex-row items-center flex-1`}>
             <View
@@ -482,7 +543,13 @@ const SearchSelectServiceItem = ({
                   PACKAGE
                 </Text>
               )}
-            </View>
+
+              {item.originalQty && currentQty !== item.originalQty && (
+                <Text style={tw`text-[10px] text-orange-500 mt-1`}>
+                  Original Qty: {item.originalQty}
+                </Text>
+              )}
+            </View> 
           </View>
 
           <TouchableOpacity onPress={() => handleDeleteLocal(item)}>
@@ -492,29 +559,67 @@ const SearchSelectServiceItem = ({
 
         <View style={[themed.border, tw`h-[0.5px] my-2`]} />
 
-        <View style={tw`flex-row justify-between items-center`}>
-          <View>
+        <View style={tw`flex-row justify-between items-center flex-wrap`}>
+          <View style={tw`mb-2`}>
             <Text style={tw`text-[10px] text-gray-400`}>MRP</Text>
-            <Text style={[themed.inputText, tw`text-xs`]}>₹ {item.mrp}</Text>
+            <Text style={[themed.inputText, tw`text-xs`]}>₹ {item.mrp || item.rate || 0}</Text>
           </View>
 
-          <View>
-            <Text style={tw`text-[10px] text-gray-400`}>Rate</Text>
+          <View style={tw`mb-2`}>
+            <Text style={tw`text-[10px] text-gray-400`}>QTY</Text>
+            <View style={tw`flex-row items-center`}>
+              <TouchableOpacity
+                onPress={() => {
+                  const newQty = Math.max(1, currentQty - 1);
+                  updateQuantity(getDetailId(item), newQty);
+                }}
+                style={[
+                  themed.border,
+                  tw`w-9 h-9 rounded-full items-center justify-center`,
+                ]}>
+                <Text style={[themed.labelText, tw`text-xl font-bold`]}>−</Text>
+              </TouchableOpacity>
 
+              <TextInput
+                value={String(currentQty)}
+                onChangeText={(text) => updateQuantity(getDetailId(item), text)}
+                keyboardType="numeric"
+                style={[themed.labelText, tw`w-[30px] px-2 py-1 text-center`]}
+                placeholder="1"
+                placeholderTextColor="#9ca3af"
+              />
+
+              <TouchableOpacity
+                onPress={() => {
+                  const newQty = currentQty + 1;
+                  updateQuantity(getDetailId(item), newQty);
+                }}
+                style={[
+                  themed.border,
+                  tw`w-9 h-9 rounded-full items-center justify-center`,
+                ]}
+              >
+                <Text style={[themed.labelText, tw`text-lg font-bold`]}>+</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={tw`mb-2`}>
+            <Text style={tw`text-[10px] text-gray-400`}>Rate</Text>
             {item.isRateEditable === true ? (
               <View style={tw`flex-row items-center`}>
                 <Text style={tw`text-green-600 font-bold mr-1`}>₹</Text>
                 <TextInput
                   value={
                     item.rate === '' ||
-                    item.rate === null ||
-                    item.rate === undefined
+                      item.rate === null ||
+                      item.rate === undefined
                       ? ''
                       : String(item.rate)
                   }
                   onChangeText={txt => updateRate(item, txt)}
                   keyboardType="numeric"
-                  style={tw`min-w-[70px] px-2 py-1 border border-green-200 rounded-lg text-green-700 font-bold`}
+                  style={tw`min-w-[80px] px-2 py-1 border border-green-200 rounded-lg text-green-700 font-bold`}
                   placeholder="0"
                   placeholderTextColor="#9ca3af"
                 />
@@ -526,8 +631,15 @@ const SearchSelectServiceItem = ({
             )}
           </View>
 
+          <View style={tw`mb-2`}>
+            <Text style={tw`text-[10px] text-gray-400`}>Amount</Text>
+            <Text style={[themed.inputText, tw`text-sm font-bold text-blue-600`]}>
+              ₹ {(Number(item.rate) || 0) * currentQty}
+            </Text>
+          </View>
+
           {item.sampleVolume ? (
-            <View>
+            <View style={tw`mb-2`}>
               <Text style={tw`text-[10px] text-gray-400`}>Volume</Text>
               <Text style={[themed.inputText, tw`text-xs`]}>
                 {item.sampleVolume}
@@ -538,7 +650,7 @@ const SearchSelectServiceItem = ({
           <Pressable
             onPress={() => toggleUrgent(item)}
             android_ripple={null}
-            style={tw`flex-row items-center px-1 py-1`}
+            style={tw`flex-row items-center px-1 py-1 mb-2`}
             hitSlop={6}
           >
             <View pointerEvents="none" style={tw`flex-row items-center`}>
@@ -549,7 +661,7 @@ const SearchSelectServiceItem = ({
 
           <TouchableOpacity
             onPress={() => handleViewRange(item)}
-            style={tw`flex-row items-center`}
+            style={tw`mb-2`}
           >
             <MaterialIcons name="visibility" size={20} color="#4b5563" />
           </TouchableOpacity>
@@ -573,50 +685,55 @@ const SearchSelectServiceItem = ({
       ) : (
         <>
           <FlatList
-            key={`service-list-${listVersion}-${visibleDetailsList
-              .map(i => getDetailId(i))
-              .join('_')}`}
+            key={`service-list-${listVersion}`}
             ref={flatListRef}
             data={visibleDetailsList}
-            extraData={`${listVersion}-${visibleDetailsList.length}-${totalAmount}`}
-            keyExtractor={item => String(getDetailId(item))}
+            keyExtractor={item => `${getDetailId(item)}-${item.qty}`}
             renderItem={renderItem}
             ListEmptyComponent={renderEmpty}
             style={tw`flex-1`}
             contentContainerStyle={{
               paddingTop: 12,
-              paddingBottom: visibleDetailsList.length > 0 ? 130 : 20,
+              paddingBottom: isDirty && visibleDetailsList.length > 0 ? 140 : 20,
               flexGrow: visibleDetailsList.length === 0 ? 1 : 0,
             }}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
             nestedScrollEnabled
-            removeClippedSubviews={false}
-            initialScrollIndex={0}
+            removeClippedSubviews={true}
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            getItemLayout={getItemLayout}
+            onContentSizeChange={() => {
+              // Force re-measurement when content size changes
+              flatListRef.current?.recordInteraction();
+            }}
           />
 
           {visibleDetailsList.length > 0 && isDirty && (
             <View
               style={[
                 themed.borderTop,
-                tw`absolute bottom-0 left-0 right-0   border-t`,
+                tw`absolute bottom-0 left-0 right-0`,
+                
               ]}
              >
-              <View style={tw`flex-row justify-between items-center mb-2`}>
-                <Text style={[themed.inputText]}>
+              <View style={tw`flex-row justify-between items-center mb-3`}>
+                <Text style={[themed.inputText, tw`text-base font-bold`]}>
                   Total Amount
                 </Text>
-                <Text style={tw`text-lg font-bold text-green-600`}>
+                <Text style={tw`text-xl font-bold text-green-600`}>
                   ₹ {totalAmount}
                 </Text>
               </View>
 
               <TouchableOpacity
                 onPress={createPayload}
-                style={tw`bg-blue-800/60  p-3 rounded-lg`}
+                style={tw`bg-blue-600 p-3 rounded-lg shadow-md`}
                >
-                <Text style={tw`text-white text-center font-bold`}>
+                <Text style={tw`text-white text-center font-bold text-base`}>
                   Add ({visibleDetailsList.length}) Tests
                 </Text>
               </TouchableOpacity>
@@ -632,7 +749,7 @@ const SearchSelectServiceItem = ({
         statusBarTranslucent
         presentationStyle="overFullScreen"
         onRequestClose={() => setRangeModalVisible(false)}
-       >
+      >
         <View style={themed.modalOverlay}>
           <Pressable
             style={tw`absolute inset-0`}

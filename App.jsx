@@ -1,32 +1,33 @@
-import React, {useEffect, useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   DarkTheme,
   DefaultTheme,
   NavigationContainer,
   createNavigationContainerRef,
 } from '@react-navigation/native';
-import {useAuth} from './Authorization/AuthContext';
+import { useAuth } from './Authorization/AuthContext';
 import DashboardDrawer from './src/DashboardDrawer';
 import LoginScreen from './src/Login';
-import {SafeAreaProvider} from 'react-native-safe-area-context';
-import {StatusBar, PermissionsAndroid, Platform} from 'react-native';
-import {ResponsiveProvider} from './src/context/ResponsiveContext';
-import {useTheme} from './Authorization/ThemeContext';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { StatusBar, PermissionsAndroid, Platform } from 'react-native';
+import { ResponsiveProvider } from './src/context/ResponsiveContext';
+import { useTheme } from './Authorization/ThemeContext';
 import StartupSplash from './src/StartupSplash';
 import useCurrentLocation from './src/utils/locationService';
 import {
   getBackgroundLocationEnabled,
   getLiveLocationSession,
 } from './src/utils/backgroundLocationPrefs';
+import FloatingButton from './FloatingButton';
 
 const navigationRef = createNavigationContainerRef();
 
 const AppContent = () => {
-  const {token, latitude, longitude} = useAuth();
+  const { token, latitude, longitude } = useAuth();
 
   // Ask for location permission on app start so coordinates are available
   // for both Login and authenticated flows.
-  useCurrentLocation({enabled: true});
+  useCurrentLocation({ enabled: true });
 
   useEffect(() => {
     if (latitude != null && longitude != null) {
@@ -38,10 +39,10 @@ const AppContent = () => {
 };
 
 export default function App() {
-  const {isLoading, token,userId} = useAuth();
-  const {theme, colors} = useTheme();
+  const { isLoading, token, userId } = useAuth();
+  const { theme, colors } = useTheme();
   const [isStartupSplashVisible, setIsStartupSplashVisible] = useState(true);
- console.log('App userId:', userId);
+  console.log('App userId:', userId);
 
   useEffect(() => {
     requestStoragePermission();
@@ -106,16 +107,16 @@ export default function App() {
                   screen: 'Dashboard',
                   params: {
                     screen: 'FlaboShareLiveLocation',
-                    params: {id: session.sampleId},
+                    params: { id: session.sampleId },
                   },
                 });
               } else if (bgEnabled) {
                 navigationRef.navigate('MainTabs', {
                   screen: 'Dashboard',
-                  params: {screen: 'UpdateSampleStatus'},
+                  params: { screen: 'UpdateSampleStatus' },
                 });
               }
-            } catch {}
+            } catch { }
           }}
           theme={{
             ...(theme === 'dark' ? DarkTheme : DefaultTheme),
@@ -130,6 +131,7 @@ export default function App() {
           }}>
           <AppContent />
         </NavigationContainer>
+        <FloatingButton />
       </ResponsiveProvider>
     </SafeAreaProvider>
   );

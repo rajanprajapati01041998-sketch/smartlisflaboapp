@@ -56,6 +56,7 @@ const HIDE_TABS_BY_TAB = {
     'BarcodeScanner',
     'UpdateSampleStatus'
   ]),
+  HelpDesk: new Set(['ListHelpDeskPatient']),
 };
 
 const getDeepestRouteName = (route) => {

@@ -154,7 +154,7 @@ const FilterDate = ({ onClose, onSave }) => {
                             })
                         }
                      >
-                        <Text style={themed.saveButtonText}>Save</Text>
+                        <Text style={themed.saveButtonText}>Search</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity

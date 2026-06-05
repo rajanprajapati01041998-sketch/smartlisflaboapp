@@ -147,10 +147,13 @@ const AddBarcodePatientRegistration = ({
                     <View style={tw`flex-row items-center gap-2`}>
                       <TextInput
                         value={groupBarcode}
+                        keyboardType="numeric"
                         onChangeText={txt => {
+                          const numericText = txt.replace(/[^0-9]/g, '');
+
                           setGroupBarcodeDraft(prev => ({
                             ...(prev || {}),
-                            [groupKey]: txt,
+                            [groupKey]: numericText,
                           }));
                         }}
                         onEndEditing={e => {

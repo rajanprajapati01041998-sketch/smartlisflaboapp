@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -15,6 +15,7 @@ import {
     Modal,
     FlatList,
     PermissionsAndroid,
+    Switch,
 } from 'react-native';
 
 import LinearGradient from 'react-native-linear-gradient';
@@ -51,6 +52,7 @@ const Login = () => {
 
     const [userIdApp, setUserIdApp] = useState('');
     const [passwordApp, setPasswordApp] = useState('');
+    const [rememberMe, setRememberMe] = useState(false);
 
     const [loading, setLoading] = useState(false);
     const [branchLoading, setBranchLoading] = useState(false);
@@ -65,6 +67,7 @@ const Login = () => {
     const { theme } = useTheme();
     const themed = getThemeStyles(theme);
 
+    // THIS IS THE MISSING PART - filteredBranches definition
     const filteredBranches = useMemo(() => {
         const search = branchSearch.trim().toLowerCase();
 
@@ -82,9 +85,62 @@ const Login = () => {
         });
     }, [branches, branchSearch]);
 
-    
+    // Load saved credentials on component mount
+    useEffect(() => {
+        loadSavedCredentials();
+    }, []);
 
-    
+    const loadSavedCredentials = async () => {
+        try {
+            const savedUserId = await AsyncStorage.getItem('rememberedUserId');
+            const savedPassword = await AsyncStorage.getItem('rememberedPassword');
+            const rememberMeStatus = await AsyncStorage.getItem('rememberMeStatus');
+            
+            if (rememberMeStatus === 'true' && savedUserId && savedPassword) {
+                setUserIdApp(savedUserId);
+                setPasswordApp(savedPassword);
+                setRememberMe(true);
+            }
+        } catch (error) {
+            console.log('Error loading saved credentials:', error);
+        }
+    };
+
+    const saveCredentials = async (userId, password, shouldRemember) => {
+        try {
+            if (shouldRemember) {
+                await AsyncStorage.setItem('rememberedUserId', userId);
+                await AsyncStorage.setItem('rememberedPassword', password);
+                await AsyncStorage.setItem('rememberMeStatus', 'true');
+            } else {
+                await AsyncStorage.removeItem('rememberedUserId');
+                await AsyncStorage.removeItem('rememberedPassword');
+                await AsyncStorage.setItem('rememberMeStatus', 'false');
+            }
+        } catch (error) {
+            console.log('Error saving credentials:', error);
+        }
+    };
+
+    // Auto-fill password when userId is entered and remember me is enabled
+    const handleUserIdChange = async (text) => {
+        setUserIdApp(text);
+        
+        if (rememberMe) {
+            try {
+                const savedUserId = await AsyncStorage.getItem('rememberedUserId');
+                const savedPassword = await AsyncStorage.getItem('rememberedPassword');
+                
+                if (savedUserId === text && savedPassword) {
+                    setPasswordApp(savedPassword);
+                } else {
+                    setPasswordApp('');
+                }
+            } catch (error) {
+                console.log('Error auto-filling password:', error);
+            }
+        }
+    };
 
     const getDevicePayload = async () => {
         return {
@@ -108,6 +164,9 @@ const Login = () => {
             return;
         }
 
+        // Save credentials when attempting to login
+        await saveCredentials(userIdApp.trim(), passwordApp.trim(), rememberMe);
+
         try {
             setLoading(true);
             setBranchLoading(true);
@@ -121,7 +180,6 @@ const Login = () => {
             };
 
             console.log('Branch List Payload:', payload);
-            
 
             const response = await api.post(
                 'FlaboLogin/fieldBoyBranchList',
@@ -130,25 +188,19 @@ const Login = () => {
 
             console.log('Branch List Response:', response.data);
 
-            if (response.data?.success) {
-                const list = Array.isArray(response.data?.data)
-                    ? response.data.data
-                    : [];
+            const list = Array.isArray(response.data?.data)
+                ? response.data.data
+                : [];
 
-                setBranches(list);
-                setBranchSearch('');
-
-                if (list.length === 1) {
-                    await handleBranchSelect(list[0]);
-                } else {
-                    setBranchModalVisible(true);
-                }
+            setBranches(list);
+            console.log('Branches set in state:', list);
+            setBranchSearch('');
+            if (list.length === 1) {
+                await handleBranchSelect(list[0]);
             } else {
-                showToast(
-                    response.data?.message || 'Invalid User ID or Password',
-                    'error',
-                );
+                setBranchModalVisible(true);
             }
+
         } catch (error) {
             console.log(
                 'Branch List Error:',
@@ -191,25 +243,25 @@ const Login = () => {
             );
 
             console.log('Field Boy Login Response:', response?.data);
-                const token = response.data?.token;
-                const data = response.data?.data;
-                setToken(token);
-                setUserData(data?.fieldBoyName);
-                setUserId(data?.userId);
-                setFieldBoyId(data?.fieldBoyId);
-                setLoginBranchId(data?.loginBranchId);
-                setLoginHistoryId(data?.loginHistoryId);
-                setFieldBoyData(data);
-                await AsyncStorage.setItem('fieldBoyToken', token);
-                await AsyncStorage.setItem('fieldBoyData', JSON.stringify(data));
-                await AsyncStorage.setItem(
-                    'fieldBoyLoginHistoryId',
-                    String(data?.loginHistoryId || ''),
-                );
+            const token = response.data?.token;
+            const data = response.data?.data;
+            setToken(token);
+            setUserData(data?.fieldBoyName);
+            setUserId(data?.userId);
+            setFieldBoyId(data?.fieldBoyId);
+            setLoginBranchId(data?.loginBranchId);
+            setLoginHistoryId(data?.loginHistoryId);
+            setFieldBoyData(data);
+            await AsyncStorage.setItem('fieldBoyToken', token);
+            await AsyncStorage.setItem('fieldBoyData', JSON.stringify(data));
+            await AsyncStorage.setItem(
+                'fieldBoyLoginHistoryId',
+                String(data?.loginHistoryId || ''),
+            );
 
-                setBranchModalVisible(false);
-                showToast('Login Successful', 'success');
-           
+            setBranchModalVisible(false);
+            showToast('Login Successful', 'success');
+
         } catch (error) {
             console.log(
                 'Field Boy Login Error:',
@@ -388,16 +440,16 @@ const Login = () => {
 
                         <TextInput
                             value={userIdApp}
-                            onChangeText={setUserIdApp}
+                            onChangeText={handleUserIdChange}
                             placeholder="Enter User ID"
                             placeholderTextColor="#9CA3AF"
                             autoCapitalize="none"
-                            style={tw`text-black text-lg font-bold border-b border-yellow-400 pb-3 mb-8`}
+                            style={tw`text-black text-lg font-bold border-b border-yellow-400 pb-3 mb-5`}
                         />
 
                         <Text style={tw`text-gray-500 text-sm mb-1`}>Password</Text>
 
-                        <View style={tw`flex-row items-center border-b border-gray-200 mb-5`}>
+                        <View style={tw`flex-row items-center border-b border-gray-200 mb-4`}>
                             <TextInput
                                 value={passwordApp}
                                 onChangeText={setPasswordApp}
@@ -415,6 +467,37 @@ const Login = () => {
                                     color="#6B7280"
                                 />
                             </TouchableOpacity>
+                        </View>
+
+                        {/* Remember Me Switch */}
+                        <View style={tw`flex-row items-center justify-between mb-6`}>
+                            <TouchableOpacity
+                                onPress={() => setRememberMe(!rememberMe)}
+                                style={tw`flex-row items-center`}>
+                                <Switch
+                                    value={rememberMe}
+                                    onValueChange={setRememberMe}
+                                    trackColor={{ false: '#D1D5DB', true: '#174B3F' }}
+                                    thumbColor={rememberMe ? '#FFFFFF' : '#F3F4F6'}
+                                />
+                                <Text style={tw`text-gray-600 ml-2 text-sm`}>
+                                    Remember Me
+                                </Text>
+                            </TouchableOpacity>
+                            
+                            {rememberMe && userIdApp && (
+                                <TouchableOpacity
+                                    onPress={async () => {
+                                        await saveCredentials('', '', false);
+                                        setRememberMe(false);
+                                        setPasswordApp('');
+                                        showToast('Remembered credentials cleared', 'info');
+                                    }}>
+                                    <Text style={tw`text-red-500 text-xs`}>
+                                        Clear Saved
+                                    </Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
 
                         <TouchableOpacity

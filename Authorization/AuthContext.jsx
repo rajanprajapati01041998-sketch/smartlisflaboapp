@@ -19,7 +19,7 @@ export const AuthProvider = ({ children }) => {
   const [ipAddress, setIpAddress] = useState(null);
   const [serviceItem, setServiceItem] = useState(null);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
-  const [corporateId, setCorporateId] = useState(null);
+  const [corporateId, setCorporateId] = useState(1);
   const [loginBranchId, setLoginBranchId] = useState(null);
   const [hosId, setHosId] = useState(1);
   const [patientData, setPatientData] = useState(null);
@@ -29,19 +29,20 @@ export const AuthProvider = ({ children }) => {
   const [centerLoginBranchId, setCenterLoginBranchId] = useState(null);
   const [addBarcode, setAddBarcode] = useState(true);
   const [barcodeScan, setBarcodeScan] = useState(null);
-  const [latitude, setLatitude] = useState(null);
-  const [longitude, setLongitude] = useState(null);
+  const [latitude, setLatitude] = useState(24.6886);
+  const [longitude, setLongitude] = useState(83.0678);
   const [loginHistoryId, setLoginHistoryId] = useState(null);
   const { showCustomAlert, AlertComponent } = useCustomAlert();
   const [logoutLoading, setLogoutLoading] = useState(false);
-
 
   useEffect(() => {
     loadStoredData();
     getBranchInfo();
     getLocalIP();
-    getCurrentLocation()
+    getCurrentLocation();
   }, []);
+
+  console.log("auth corporateId:", corporateId);
 
   const triggerUpdate = () => {
     setUpdateFlag(prev => prev + 1);
@@ -76,8 +77,8 @@ export const AuthProvider = ({ children }) => {
             resolve({
               latitudeApp: Number(position.coords.latitude),
               longitudeApp: Number(position.coords.longitude),
-              setLatitude: setLatitude(Number(position.coords.latitude)),
-              setLongitude: setLongitude(Number(position.coords.longitude)),
+              // setLatitude: setLatitude(Number(position.coords.latitude)),
+              // setLongitude: setLongitude(Number(position.coords.longitude)),
             });
           },
           error => {
@@ -114,8 +115,6 @@ export const AuthProvider = ({ children }) => {
     return granted === PermissionsAndroid.RESULTS.GRANTED;
   };
 
-
-
   const getBranchInfo = async () => {
     try {
       const data = await AsyncStorage.getItem('AllBranch');
@@ -131,16 +130,13 @@ export const AuthProvider = ({ children }) => {
 
   const loadStoredData = async () => {
     try {
-      const storedFieldBoyToken =
-        await AsyncStorage.getItem('fieldBoyToken');
-      const storedFieldBoyData =
-        await AsyncStorage.getItem('fieldBoyData');
-      const storedLoginBranchId =
-        await AsyncStorage.getItem('loginBranchId');
+      const storedFieldBoyToken = await AsyncStorage.getItem('fieldBoyToken');
+      const storedFieldBoyData = await AsyncStorage.getItem('fieldBoyData');
+      const storedLoginBranchId = await AsyncStorage.getItem('loginBranchId');
       const parsedFieldBoyData = storedFieldBoyData
         ? JSON.parse(storedFieldBoyData)
         : null;
-      console.log('Parsed Field Boy Data:', parsedFieldBoyData,);
+      console.log('Parsed Field Boy Data:', parsedFieldBoyData);
       setToken(storedFieldBoyToken);
       setFieldBoyData(parsedFieldBoyData);
       setUserData(parsedFieldBoyData);
@@ -158,10 +154,6 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(false);
     }
   };
-
-
-
-
 
   const clearAuthState = async () => {
     await AsyncStorage.removeItem('token');
@@ -182,7 +174,6 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-
     if (logoutLoading) {
       return;
     }
@@ -200,12 +191,10 @@ export const AuthProvider = ({ children }) => {
         try {
           setLogoutLoading(true);
           if (!loginHistoryId) {
-            console.log(
-              'No loginHistoryId found, skipping logout API call.'
-            );
+            console.log('No loginHistoryId found, skipping logout API call.');
           } else {
             await api.post(
-              `FlaboLogin/fieldBoyLogout?loginHistoryId=${loginHistoryId}`
+              `FlaboLogin/fieldBoyLogout?loginHistoryId=${loginHistoryId}`,
             );
           }
           await clearAuthState();
@@ -213,8 +202,7 @@ export const AuthProvider = ({ children }) => {
           console.log('Error during logout:', error);
           showCustomAlert({
             title: 'Logout Failed',
-            message:
-              'An error occurred while logging out. Please try again.',
+            message: 'An error occurred while logging out. Please try again.',
             confirmText: 'OK',
             cancelText: null,
             type: 'error',
@@ -238,23 +226,36 @@ export const AuthProvider = ({ children }) => {
           setFieldBoyId,
           isLoading,
           logout,
-          token, setToken,
-          userId, setUserId,
+          token,
+          setToken,
+          userId,
+          setUserId,
           ipAddress,
-          serviceItem, setServiceItem,
-          selectedDoctor, setSelectedDoctor,
-          corporateId, setCorporateId,
+          serviceItem,
+          setServiceItem,
+          selectedDoctor,
+          setSelectedDoctor,
+          corporateId,
+          setCorporateId,
           loginBranchId,
           setLoginBranchId,
-          patientData, setPatientData,
-          hosId, setHosId,
-          addBarcode, setAddBarcode,
-          barcodeScan, setBarcodeScan,
-          latitude, setLatitude,
-          longitude, setLongitude,
-          loginHistoryId, setLoginHistoryId,
-          logoutLoading
-        }}>
+          patientData,
+          setPatientData,
+          hosId,
+          setHosId,
+          addBarcode,
+          setAddBarcode,
+          barcodeScan,
+          setBarcodeScan,
+          latitude,
+          setLatitude,
+          longitude,
+          setLongitude,
+          loginHistoryId,
+          setLoginHistoryId,
+          logoutLoading,
+        }}
+      >
         {children}
       </AuthContext.Provider>
 

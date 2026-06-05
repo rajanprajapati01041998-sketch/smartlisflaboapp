@@ -14,7 +14,8 @@ import {
   ScrollView,
   Animated,
   ActivityIndicator,
-  Alert
+  Alert,
+  ToastAndroid
 } from 'react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import tw from 'twrnc';
@@ -39,6 +40,7 @@ import { useTheme } from '../../../../Authorization/ThemeContext';
 import { getThemeStyles } from '../../../utils/themeStyles';
 import CheckBox from '@react-native-community/checkbox';
 import { formatBillDateTime } from '../../../utils/dateUtils';
+import Clipboard from '@react-native-clipboard/clipboard';
 
 
 const { width } = Dimensions.get('window');
@@ -127,6 +129,16 @@ const ListHelpDeskPatient = () => {
         setSearchText(String(code));
       },
     });
+  };
+
+  const copyUHID = uhid => {
+    Clipboard.setString(String(uhid));
+
+    if (Platform.OS === 'android') {
+      ToastAndroid.show('UHID copied', ToastAndroid.SHORT);
+    } else {
+      Alert.alert('Copied', 'UHID copied to clipboard');
+    }
   };
 
   const statusLegend = [
@@ -522,9 +534,21 @@ const ListHelpDeskPatient = () => {
                   {item.PatientName || 'No Name'}
                 </Text>
 
-                <Text style={[themed.transactionLabel, tw`mt-0.5 text-xs`]}>
-                  {`${item.UHID || 'N/A'} • ${formatDateOnly(item.BillDate)}`}
-                </Text>
+                <View style={tw`flex-row items-center mt-0.5`}>
+                  <Text style={[themed.transactionLabel, tw`text-xs mr-2`]}>
+                    {`${item.UHID || 'N/A'} • ${formatDateOnly(item.BillDate)}`}
+                  </Text>
+
+                  {!!item.UHID && (
+                    <TouchableOpacity onPress={() => copyUHID(item.UHID)}>
+                      <MaterialIcons
+                        name="content-copy"
+                        size={14}
+                        color="#6B7280"
+                      />
+                    </TouchableOpacity>
+                  )}
+                </View>
 
                 {item.Barcode && (
                   <View style={tw`mt-1`}>

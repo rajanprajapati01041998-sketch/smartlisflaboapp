@@ -16,6 +16,9 @@ export const getThemeStyles = (theme) => {
       'flex-1',
       isDark ? 'bg-gray-800' : 'bg-white'
     ),
+    childScreen2: tw.style(
+      isDark ? 'bg-gray-800' : 'bg-white'
+    ),
 
     labelText: tw.style(
       'text-md font-bold',

@@ -466,7 +466,7 @@ const RegistrationScreen = () => {
         HospId: hosId,
         BranchId: finalLoginBranchId,
         LoginBranchId: finalLoginBranchId,
-        CorporateId: corporateId,
+        CorporateId: corporateId || 1,
         Title: selectedTitle || "Mr.",
         FirstName: firstName,
         MiddleName: middleName,
@@ -586,7 +586,6 @@ const RegistrationScreen = () => {
       };
 
       console.log("FINAL PAYLOAD 👉", JSON.stringify(payload, null, 2));
-      // return;
       const response = await api.post("Patient/save", payload);
       console.log("SUCCESS 👉", response);
       const uhid = response?.data?.uhid;
@@ -1208,15 +1207,15 @@ const RegistrationScreen = () => {
                 </TouchableOpacity>
               </View>
 
-              {/* <TouchableOpacity
+              <TouchableOpacity
                 onPress={() => setAddReferDoctorModal(true)}
                 style={[
                   themed.addButton,
-                  tw`mb-3  items-center justify-center `
+                  tw`mb-3  flex-0.2 items-center justify-center  ml-2`
                 ]}
               >
                 <Text style={styles.buttonTextAdd}>+</Text>
-              </TouchableOpacity> */}
+              </TouchableOpacity>
             </View>
 
             {/* <View style={tw`w-full`}>
