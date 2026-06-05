@@ -150,20 +150,25 @@ const SearchSelectServiceItem = ({
           .filter(id => id > 0),
       );
 
-      const currentList = detailsList.filter(item =>
-        selectedIdSet.has(Number(item?.serviceItemId)),
-      );
+      // IMPORTANT: never use `detailsList` from closure here.
+      // Derive current + missing using latest state via functional updates.
+      let missingItems = [];
+      setDetailsList(prev => {
+        const currentList = prev.filter(item =>
+          selectedIdSet.has(Number(item?.serviceItemId)),
+        );
 
-      const existingIdSet = new Set(
-        currentList.map(item => Number(item?.serviceItemId)),
-      );
+        const existingIdSet = new Set(
+          currentList.map(item => Number(item?.serviceItemId)),
+        );
 
-      const missingItems = filteredData.filter(item => {
-        const id = Number(item?.itemId ?? item?.serviceItemId ?? item?.id ?? 0);
-        return id > 0 && !existingIdSet.has(id);
+        missingItems = filteredData.filter(item => {
+          const id = Number(item?.itemId ?? item?.serviceItemId ?? item?.id ?? 0);
+          return id > 0 && !existingIdSet.has(id);
+        });
+
+        return currentList;
       });
-
-      setDetailsList(currentList);
 
       if (missingItems.length === 0) {
         setListVersion(v => v + 1);
@@ -203,7 +208,7 @@ const SearchSelectServiceItem = ({
             );
 
             const defaultQty = Number(selected?.qty);
-            const initialQty = (defaultQty && defaultQty > 0) ? defaultQty : 1;
+            const initialQty = defaultQty && defaultQty > 0 ? defaultQty : 1;
 
             return {
               ...details,
@@ -688,7 +693,7 @@ const SearchSelectServiceItem = ({
             key={`service-list-${listVersion}`}
             ref={flatListRef}
             data={visibleDetailsList}
-            keyExtractor={item => `${getDetailId(item)}-${item.qty}`}
+            keyExtractor={item => String(getDetailId(item))}
             renderItem={renderItem}
             ListEmptyComponent={renderEmpty}
             style={tw`flex-1`}

@@ -19,7 +19,10 @@ export const getThemeStyles = (theme) => {
     childScreen2: tw.style(
       isDark ? 'bg-gray-800' : 'bg-white'
     ),
-
+ menuText: tw.style(
+      'text-md font-bold',
+      isDark ? 'text-gray-100' : 'text-gray-500'
+    ),
     labelText: tw.style(
       'text-md font-bold',
       isDark ? 'text-gray-400' : 'text-gray-500'

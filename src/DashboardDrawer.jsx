@@ -22,18 +22,22 @@ import {
   setBackgroundLocationEnabled,
 } from './utils/backgroundLocationPrefs';
 const Drawer = createDrawerNavigator();
+import AnimatedBorder from '../AnimatedBorder';
+import { getThemeStyles } from './utils/themeStyles';
 
 function DashboardDrawerContent(props) {
   const { colors, theme } = useTheme();
-  const { logout, fieldBoyData,logoutLoading } = useAuth();
+  const { logout, fieldBoyData, logoutLoading } = useAuth();
   const [search, setSearch] = useState('');
   const [bgLocationEnabled, setBgLocationEnabled] = useState(false);
+
+  const themed = getThemeStyles(theme);
 
   useEffect(() => {
     let mounted = true;
     getBackgroundLocationEnabled()
       .then(v => mounted && setBgLocationEnabled(v))
-      .catch(() => {});
+      .catch(() => { });
     return () => {
       mounted = false;
     };
@@ -121,7 +125,7 @@ function DashboardDrawerContent(props) {
     <View style={[tw`flex-1`, { backgroundColor: colors.surface }]}>
       <DrawerContentScrollView
         {...props}
-        contentContainerStyle={tw`pb-6`}
+        contentContainerStyle={tw`pb-2`}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
@@ -134,10 +138,10 @@ function DashboardDrawerContent(props) {
             },
           ]}
         >
-          <View style={tw`flex-row items-center`}>
+          <View style={tw`flex-row items-center mb-1`}>
             <View
               style={[
-                tw`w-13 h-13 rounded-2xl items-center justify-center`,
+                tw`w-10 h-10 rounded-lg items-center justify-center`,
                 { backgroundColor: '#2563eb' },
               ]}
             >
@@ -151,55 +155,42 @@ function DashboardDrawerContent(props) {
             <View style={tw`ml-3 flex-1`}>
               <Text
                 numberOfLines={1}
-                style={[tw`text-base font-bold uppercase`, { color: colors.text }]}
+                style={[tw`text-base font-bold uppercase`, themed.menuText]}
               >
                 {fieldBoyData?.fieldBoyName || 'Gravity User'}
               </Text>
-
-              <Text
-                numberOfLines={1}
-                style={[
-                  tw`text-xs mt-0.5`,
-                  { color: colors.text, opacity: 0.65 },
-                ]}
-              >
+              <Text numberOfLines={1}   style={[ tw`mt-0.5`,themed.labelTextXs  ]} >
                 Quick actions menu
               </Text>
             </View>
           </View>
 
           {/* Search */}
-          <View
-            style={[
-              tw`mt-4 px-3 py-2.5 rounded-2xl flex-row items-center border`,
-              {
-                backgroundColor:
-                  theme === 'dark' ? 'rgba(255,255,255,0.06)' : '#fff',
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <Feather name="search" size={18} color={colors.text} />
+          <AnimatedBorder>
+            <View  style={[tw`px-3 py-2.5 rounded-2xl flex-row items-center`,themed.childScreen2]}>
+              <Feather name="search"size={18} color={themed.iconColor}/>
+              <TextInput
+                value={search}
+                onChangeText={setSearch}
+                placeholder="Search menu..."
+                placeholderTextColor={themed.inputPlaceholder}
+                style={[themed.inputText,
+                  tw`flex-1 ml-2 py-0 text-sm`,
+                ]}
+              />
 
-            <TextInput
-              value={search}
-              onChangeText={setSearch}
-              placeholder="Search menu..."
-              placeholderTextColor={
-                theme === 'dark' ? '#9ca3af' : '#6b7280'
-              }
-              style={[
-                tw`flex-1 ml-2 py-0 text-sm`,
-                { color: colors.text },
-              ]}
-            />
-
-            {search.length > 0 && (
-              <TouchableOpacity onPress={() => setSearch('')}>
-                <Feather name="x-circle" size={18} color={colors.text} />
-              </TouchableOpacity>
-            )}
-          </View>
+              {search.length > 0 && (
+                <TouchableOpacity
+                  onPress={() => setSearch('')}>
+                  <Feather
+                    name="x-circle"
+                    size={18}
+                    color={themed.iconColor}
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
+          </AnimatedBorder>
         </View>
 
         {/* Menu */}
@@ -207,7 +198,7 @@ function DashboardDrawerContent(props) {
           <Text
             style={[
               tw`px-2 mb-2 text-xs font-bold uppercase`,
-              { color: colors.text, opacity: 0.5 },
+              themed.labelText,
             ]}
           >
             Navigation
@@ -219,26 +210,26 @@ function DashboardDrawerContent(props) {
               {
                 backgroundColor:
                   theme === 'dark' ? 'rgba(255,255,255,0.04)' : '#ffffff',
-                borderColor: colors.border,
+                borderColor: themed.border,
               },
             ]}
           >
             <View
               style={[
-                tw`w-11 h-11 rounded-xl items-center justify-center`,
+                tw`w-8 h-8 rounded-xl items-center justify-center`,
                 { backgroundColor: 'rgba(22,163,74,0.10)' },
               ]}
             >
-              <MaterialCommunityIcons name="map-marker-radius" size={22} color="#16a34a" />
+              <MaterialCommunityIcons name="map-marker-radius" size={18} color="#16a34a" />
             </View>
 
             <View style={tw`ml-3 flex-1`}>
-              <Text style={[tw`text-sm font-semibold`, { color: colors.text }]}>
+              <Text style={[tw`text-sm font-semibold` ,themed.menuText]}>
                 Background Location
               </Text>
               <Text
                 numberOfLines={1}
-                style={[tw`text-xs mt-0.5`, { color: colors.text, opacity: 0.55 }]}
+                style={[tw`text-xs mt-0.5`, themed.labelTextXs]}
               >
                 Keep live tracking enabled
               </Text>
@@ -250,7 +241,7 @@ function DashboardDrawerContent(props) {
                 setBgLocationEnabled(next);
                 try {
                   await setBackgroundLocationEnabled(next);
-                } catch {}
+                } catch { }
               }}
               trackColor={{ false: '#d1d5db', true: 'rgba(22,163,74,0.35)' }}
               thumbColor={bgLocationEnabled ? '#16a34a' : '#f4f4f5'}
@@ -284,22 +275,11 @@ function DashboardDrawerContent(props) {
                 </View>
 
                 <View style={tw`ml-3 flex-1`}>
-                  <Text
-                    style={[
-                      tw`text-sm font-semibold`,
-                      { color: colors.text },
-                    ]}
-                  >
+                  <Text style={[ tw`text-sm font-semibold`,themed.menuText ]}>
                     {item.label}
                   </Text>
 
-                  <Text
-                    numberOfLines={1}
-                    style={[
-                      tw`text-xs mt-0.5`,
-                      { color: colors.text, opacity: 0.55 },
-                    ]}
-                  >
+                  <Text numberOfLines={1} style={[tw` mt-0.5`, themed.labelTextXs]}>
                     {item.subTitle}
                   </Text>
                 </View>
