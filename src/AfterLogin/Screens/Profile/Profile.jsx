@@ -33,7 +33,7 @@ import { getThemeStyles } from '../../../utils/themeStyles';
 const { width } = Dimensions.get('window');
 
 const Profile = () => {
-  const { logout, userData ,fieldBoyData} = useAuth();
+  const { logout, userData, fieldBoyData } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const themed = getThemeStyles(theme);
   const navigation = useNavigation();
@@ -43,7 +43,7 @@ const Profile = () => {
   const scaleValue = useSharedValue(1);
   const opacityValue = useSharedValue(1);
 
-  console.log('user profile',userData)
+  console.log('user profile', userData)
 
   useEffect(() => {
     setLabName(userData?.name || '');
@@ -78,7 +78,7 @@ const Profile = () => {
 
   const profileItems = [
     { icon: 'person', name: 'User ID', value: fieldBoyData?.userIdApp, color: '#8b5cf6' },
-    
+
   ];
 
   return (
@@ -92,7 +92,7 @@ const Profile = () => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={tw`flex-1`}
       >
-        
+
 
         <ScrollView
           contentContainerStyle={{ paddingBottom: 110 }}
@@ -135,12 +135,7 @@ const Profile = () => {
                     <Icon name={item.icon} size={20} color={item.color} />
                   </View>
 
-                  <Text
-                    style={[
-                      themed.profileItemLabel,
-                      { letterSpacing: 0.5 },
-                    ]}
-                  >
+                  <Text style={[themed.profileItemLabel, { letterSpacing: 0.5 },]}>
                     {item.name}
                   </Text>
                 </View>
@@ -153,7 +148,7 @@ const Profile = () => {
           </Animated.View>
 
           {/* Login History */}
-          
+
 
           {/* Account Status */}
           <Animated.View
@@ -216,6 +211,35 @@ const Profile = () => {
               </View>
             </TouchableOpacity>
           </Animated.View>
+
+
+          <Animated.View entering={FadeInDown.delay(500).springify()}
+            style={tw`px-4 mt-4`}
+           >
+            <TouchableOpacity style={[styles.cardShadow, themed.profileCard, tw`p-4`, { borderWidth: 1, elevation: 2, },]}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('Setting')}
+            >
+              <View style={tw`flex-row items-center`}>
+                <Animated.View entering={ZoomIn.delay(550)} style={themed.profileIconBox}>
+                  <Icon2 name="settings" size={24} color={themed.iconColor} />
+
+                </Animated.View>
+
+                <View style={tw`flex-1`}>
+                  <Text style={[tw`text-base font-semibold`, themed.mutedText]}>
+                    Dark Mode
+                  </Text>
+                  <Text style={[tw`text-xs mt-1`, themed.headerSubText]}>
+                    Turn {theme === 'dark' ? 'off' : 'on'} dark appearance
+                  </Text>
+                </View>
+
+                <Icon name='navigate-next' size={36} color={themed.iconColor} />
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+
         </ScrollView>
 
         {/* Logout Button */}

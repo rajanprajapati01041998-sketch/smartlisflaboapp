@@ -7,7 +7,6 @@ import { useTheme } from 'react-native-paper'
 import { getThemeStyles } from '../../../utils/themeStyles'
 
 const SelectApproval = ({ loginBranchId, onClose, onSelectedApproval }) => {
-
     const { showToast } = useToast()
     const [approvalList, setApprovalList] = useState([])
     const [selectedId, setSelectedId] = useState(null)

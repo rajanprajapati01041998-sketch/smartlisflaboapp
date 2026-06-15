@@ -36,7 +36,10 @@ const HIDE_TABS_BY_TAB = {
     'Track Location',
     'BarcodeScanner',
     'UpdateSampleStatus',
-    'FlaboShareLiveLocation'
+    'FlaboShareLiveLocation',
+    'Setting',
+    'Test Refund Receipts',
+    'Test Refund'
 
   ]),
   Registration: new Set(['PatientInformation','BarcodeScanner']),
@@ -54,7 +57,8 @@ const HIDE_TABS_BY_TAB = {
     'FlaboShareLiveLocation',
     'Track Location',
     'BarcodeScanner',
-    'UpdateSampleStatus'
+    'UpdateSampleStatus',
+    
   ]),
   HelpDesk: new Set(['ListHelpDeskPatient']),
 };

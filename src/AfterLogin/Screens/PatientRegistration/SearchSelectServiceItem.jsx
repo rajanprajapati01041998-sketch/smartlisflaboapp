@@ -570,7 +570,7 @@ const SearchSelectServiceItem = ({
             <Text style={[themed.inputText, tw`text-xs`]}>₹ {item.mrp || item.rate || 0}</Text>
           </View>
 
-          <View style={tw`mb-2`}>
+          {/* <View style={tw`mb-2`}>
             <Text style={tw`text-[10px] text-gray-400`}>QTY</Text>
             <View style={tw`flex-row items-center`}>
               <TouchableOpacity
@@ -607,7 +607,7 @@ const SearchSelectServiceItem = ({
                 <Text style={[themed.labelText, tw`text-lg font-bold`]}>+</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </View> */}
 
           <View style={tw`mb-2`}>
             <Text style={tw`text-[10px] text-gray-400`}>Rate</Text>

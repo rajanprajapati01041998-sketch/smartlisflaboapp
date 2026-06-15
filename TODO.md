@@ -1,9 +1,7 @@
-# React Native Android Build Fix - Razorpay Manifest Merger
+- [ ] Update Registration.jsx: add top-right cart/drawer UI showing selected tests count
+- [ ] Update Registration.jsx: replace SearchSelect modal trigger with a single persistent modal flow (no nested modal on select)
+- [x] Update SearchSelectService.jsx: remove the nested “modalVisible” selection confirmation; keep single modal open
 
-## Steps:
-- ✅ 1. Edit android/app/src/main/AndroidManifest.xml: Add tools namespace and tools:replace to Razorpay activity.
-- ✅ 2. Clean Gradle: cd android && ./gradlew clean
-- ✅ 3. Test build: npm run android (pending user run; manifest fully fixed: removed conflicting theme)
-- [ ] 4. Codegen handled as warning (common in RN; doesn't block).
-- [ ] 5. Complete: attempt_completion with success message and test command.
+- [ ] Update Registration.jsx: open second modal from top-right cart only when user taps cart; keep existing flow unchanged after that
+- [ ] Test: open Search Tests, select multiple tests, verify only one modal stays open; tap cart drawer opens second modal
 

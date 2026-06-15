@@ -204,8 +204,8 @@ export const getThemeStyles = (theme) => {
     ),
 
     inputBox: tw.style(
-      'rounded-lg p-3 border',
-      isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
+      'rounded-lg p-3 border shadow-sm focus:border-blue-400  focus:ring-2 focus:ring-blue-100 transition-all duration-200',
+      isDark ? 'border border-gray-600   px-4 py-3  text-base bg-gray-800 text-gray-100 ' : 'bg-white border-gray-200'
     ),
 
     inputText: tw.style(

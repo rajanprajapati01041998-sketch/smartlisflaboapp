@@ -21,6 +21,9 @@ import LABReceipts from './AfterLogin/Screens/PatientRegistration/LabReceipts';
 import Location from './components/Location/Location';
 import FlaboShareLiveLocation from './AfterLogin/Screens/HelpDesk/FlaboShareLiveLocation';
 import UpdateSampleStatus from './components/SampleStatus/UpdateSampleStatus';
+import Home from './AfterLogin/Screens/Settings/Home';
+import TestRefund from './AfterLogin/TestRefund/TestRefund';
+import ViewTestRefundReceipt from './AfterLogin/TestRefund/ViewTestRefundReceipt';
 
 const Stack = createNativeStackNavigator();
 
@@ -274,6 +277,24 @@ export default function DashboardStack() {
         name="UpdateSampleStatus"
         component={UpdateSampleStatus}
         options={{ title: 'Update Sample' }}
+      />
+      <Stack.Screen
+        name="Setting"
+        component={Home}
+        options={{
+          title: 'Setting',
+          headerShown: true,
+        }}
+      />
+       <Stack.Screen
+        name="Test Refund"
+        component={TestRefund}
+        options={{ title: 'Test Refund' }}
+      />
+       <Stack.Screen
+        name="Test Refund Receipts"
+        component={ViewTestRefundReceipt}
+        options={{ title: 'Receipts' }}
       />
     </Stack.Navigator>
   );

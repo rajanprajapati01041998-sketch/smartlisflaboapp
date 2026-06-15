@@ -6,6 +6,7 @@ import { getDeviceInfo } from '../src/utils/deviceInfo';
 import { logoutUser } from '../src/utils/logoutService/logout';
 import { useCustomAlert } from '../src/hooks/useCustomAlert';
 import api from './api';
+import { getPageSetting } from '../src/utils/pageSettings';
 
 const AuthContext = createContext();
 
@@ -34,6 +35,8 @@ export const AuthProvider = ({ children }) => {
   const [loginHistoryId, setLoginHistoryId] = useState(null);
   const { showCustomAlert, AlertComponent } = useCustomAlert();
   const [logoutLoading, setLogoutLoading] = useState(false);
+  const [pageSettings, setPageSettings] = useState(null);
+
 
   useEffect(() => {
     loadStoredData();
@@ -41,6 +44,30 @@ export const AuthProvider = ({ children }) => {
     getLocalIP();
     getCurrentLocation();
   }, []);
+
+  const loadPageSettings = async () => {
+    try {
+      const response = await getPageSetting(loginBranchId);
+
+      console.log("API Response:", response);
+
+      if (response?.result) {
+        setPageSettings(response.data);
+
+        console.log("FieldBoy:", response.data.fieldBoy);
+        console.log("Relation:", response.data.relation);
+        console.log("Email:", response.data.email);
+      }
+    } catch (err) {
+      console.log("Error:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (loginBranchId) {
+      loadPageSettings();
+    }
+  }, [loginBranchId]);
 
   console.log("auth corporateId:", corporateId);
 
@@ -254,6 +281,7 @@ export const AuthProvider = ({ children }) => {
           loginHistoryId,
           setLoginHistoryId,
           logoutLoading,
+          pageSettings
         }}
       >
         {children}
