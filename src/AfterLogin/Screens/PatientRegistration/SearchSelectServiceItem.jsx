@@ -283,13 +283,14 @@ const SearchSelectServiceItem = ({
       const cleaned = String(txt).replace(/[^0-9.]/g, '');
       const next = cleaned === '' ? '' : Number(cleaned);
 
+      // IMPORTANT: do NOT force FlatList remount/re-layout on every keystroke,
+      // otherwise TextInput loses focus.
       setDetailsList(prev =>
         prev.map(row =>
           getDetailId(row) === id ? { ...row, rate: next } : row,
         ),
       );
 
-      setListVersion(prev => prev + 1);
       markDirty();
     },
     [markDirty],
